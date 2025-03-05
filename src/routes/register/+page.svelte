@@ -4,8 +4,8 @@
 	let { form } = $props();
 </script>
 
-<h1>Login/Register</h1>
-<form method="post" action="?/login" use:enhance>
+<h1>Register</h1>
+<form method="post" action="?/register" use:enhance>
 	<label>
 		Username
 		<input name="username" />
@@ -14,7 +14,6 @@
 		Password
 		<input type="password" name="password" />
 	</label>
-	<button>Login</button>
-	<button formaction="?/register">Register</button>
+	<button>Register</button>
 </form>
 <p style="color: red">{form?.message ?? ''}</p>
