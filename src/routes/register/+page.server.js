@@ -18,7 +18,11 @@ export const actions = {
 		const formData = await event.request.formData();
 		const username = formData.get('username');
 		const password = formData.get('password');
+		const confirmedPassword = formData.get('confirmedPassword');
 
+		if(confirmedPassword !== password) {
+			return fail(400, {message: 'Passwords do not match'});
+		}
 		if (!validateUsername(username)) {
 			return fail(400, { message: 'Invalid username' });
 		}

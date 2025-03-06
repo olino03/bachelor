@@ -1,13 +1,11 @@
 <script>
 	import '../app.css';
+	import '@fortawesome/fontawesome-free/css/all.min.css'
 	import Navbar from '$lib/components/Navbar.svelte';
 	let { children } = $props();
 </script>
 
-<div class="min-h-screen flex flex-col">
+<div class="min-h-screen flex flex-col bg-[#121212]">
 	<Navbar />
-	
-	<main class="flex-1 container mx-auto max-w-6xl px-4 py-8">
-		{@render children()}
-	</main>
+	{@render children()}
 </div>
