@@ -57,7 +57,7 @@ export const actions = {
         }
 
         tags = tags ? tags.split(',').map((tag) => tag.trim()) : [];
-        const uniqueFileName = `${userID}_${name}_${file.ext}`;
+        const uniqueFileName = `${userID}_${name}_${file.filename}`;
         const filePath = path.join(UPLOADS_DIR, uniqueFileName);
 
         if (fs.existsSync(filePath)) {
