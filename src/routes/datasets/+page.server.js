@@ -3,7 +3,7 @@ import * as auth from '$lib/server/auth';
 import { fail } from '@sveltejs/kit';
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db/index';
-import { datasets } from '$lib/server/db/schema';
+import { dataset, tag } from '$lib/server/db/schema';
 
 export const actions = {
     logout: async (event) => {
@@ -20,8 +20,8 @@ export const actions = {
 
 export async function load() {
     try {
-        const allDatasets = await db.select().from(datasets);
-        const allTags = await db.select().from(tags);
+        const allDatasets = await db.select().from(dataset);
+        const allTags = await db.select().from(tag);
         return { datasets: allDatasets, tags: allTags};
     } catch (error) {
         return { 

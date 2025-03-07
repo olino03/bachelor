@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, timestamp, primaryKey } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, integer, timestamp, primaryKey, numeric } from 'drizzle-orm/pg-core';
 
 export const user = pgTable('user', {
 	id: text('id').primaryKey(),
@@ -16,7 +16,7 @@ export const session = pgTable('session', {
 
 // Models Table
 export const model = pgTable('model', {
-    id: text('id').primaryKey(),
+    id: serial('id').primaryKey(),
     userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     description: text('description'),
@@ -24,12 +24,11 @@ export const model = pgTable('model', {
     hearts: integer('hearts').notNull().default(0),
     downloadCount: integer('download_count').default(0),
     createdAt: timestamp('created_at').defaultNow(),
-    updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // Datasets Table
 export const dataset = pgTable('dataset', {
-    id: text('id').primaryKey(),
+    id: serial('serial').primaryKey(),
     userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     displayDescription: text('displayDescription'),
@@ -38,26 +37,29 @@ export const dataset = pgTable('dataset', {
     hearts: integer('hearts').notNull().default(0),
     downloadCount: integer('download_count').default(0),
     createdAt: timestamp('created_at').defaultNow(),
-    updatedAt: timestamp('updated_at').defaultNow(),
 });
 
 // Tags Table
 export const tag = pgTable('tag', {
-    id: text('id').primaryKey(),
+    id: serial('id').primaryKey(),
     name: text('name').notNull().unique(),
 });
-// ModelTags Table (Many-to-Many between Models and Tags)
+
 export const modelTag = pgTable('model_tag', {
-    modelId: text('model_id').references(() => model.id, { onDelete: 'cascade' }),
-    tagId: text('tag_id').references(() => tag.id, { onDelete: 'cascade' }),
+    modelId: integer('model_id')
+        .references(() => model.id, { onDelete: 'cascade' }),
+    tagId: integer('tag_id')
+        .references(() => tag.id, { onDelete: 'cascade' }),
 }, (table) => ({
     primaryKey: primaryKey({ columns: [table.modelId, table.tagId] }),
 }));
 
-// DatasetTags Table (Many-to-Many between Datasets and Tags)
+// DatasetTags Table (Many-to-Many)
 export const datasetTags = pgTable('dataset_tag', {
-    datasetId: text('dataset_id').references(() => dataset.id, { onDelete: 'cascade' }),
-    tagId: text('tag_id').references(() => tag.id, { onDelete: 'cascade' }),
+    datasetId: integer('dataset_id')
+        .references(() => dataset.id, { onDelete: 'cascade' }),
+    tagId: integer('tag_id')
+        .references(() => tag.id, { onDelete: 'cascade' }),
 }, (table) => ({
     primaryKey: primaryKey({ columns: [table.datasetId, table.tagId] }),
 }));
