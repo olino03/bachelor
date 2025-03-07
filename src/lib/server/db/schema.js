@@ -20,7 +20,7 @@ export const model = pgTable('model', {
     userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     description: text('description'),
-    filePath: text('file_path').notNull(),
+    displayDescription: text('displayDescription'),
     hearts: integer('hearts').notNull().default(0),
     downloadCount: integer('download_count').default(0),
     createdAt: timestamp('created_at').defaultNow(),
@@ -33,7 +33,6 @@ export const dataset = pgTable('dataset', {
     name: text('name').notNull(),
     displayDescription: text('displayDescription'),
     description: text('description'),
-    filePath: text('file_path').notNull(),
     hearts: integer('hearts').notNull().default(0),
     downloadCount: integer('download_count').default(0),
     createdAt: timestamp('created_at').defaultNow(),
@@ -55,7 +54,7 @@ export const modelTag = pgTable('model_tag', {
 }));
 
 // DatasetTags Table (Many-to-Many)
-export const datasetTags = pgTable('dataset_tag', {
+export const datasetTag = pgTable('dataset_tag', {
     datasetId: integer('dataset_id')
         .references(() => dataset.id, { onDelete: 'cascade' }),
     tagId: integer('tag_id')

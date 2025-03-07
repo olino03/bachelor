@@ -2,13 +2,13 @@
     import { page } from '$app/stores';
     import { enhance } from '$app/forms';
     import { marked } from 'marked';
-    
+
     let { data } = $props();
 
     let form = $state({
         name: '',
-        username: '',
-        shortDescription: '',
+        userID: '',
+        displayDescription: '',
         description: '',
         tags: [],
         file: null
@@ -19,29 +19,44 @@
         success: ''
     });
 
-    let tagList = $derived(form.tags.map(tag => tags.find(t => t.name === tag).name));
-    let fileSize = $derived(form.file ? (form.file.size / 1024 / 1024).toFixed(2) + ' MB' : '');
+    const toggleTag = (tagId) => {
+        form.tags = form.tags.includes(tagId)
+            ? form.tags.filter(id => id !== tagId)
+            : [...form.tags, tagId];
+    };
+
+    let tagList = $derived(
+        form.tags.map(tagId => 
+            data.tags.find(t => t.id === tagId)?.name || ''
+        ).filter(Boolean)
+    );
+    
+    let fileSize = $derived(
+        form.file ? (form.file.size / 1024 / 1024).toFixed(2) + ' MB' : ''
+    );
 </script>
 
 <div class="max-w-[1600px] mx-auto p-8">
     <h1 class="text-3xl font-bold text-yellow-400 mb-8 text-center">Upload New Dataset</h1>
 
     <div class="grid grid-cols-1 xl:grid-cols-[1fr_2fr] gap-8">
-        <!-- Form Section -->
         <form
             use:enhance
             method="POST"
             action="?/upload"
             class="bg-[#1e1e1e] p-6 rounded-xl shadow-xl"
+            enctype="multipart/form-data"
         >
             {#if $page.data.user}
-                <input type="hidden" name="username" value={$page.data.user.username} />
+                <input type="hidden" name="userID" value={$page.data.user.id} />
             {/if}
             <div class="space-y-6">
                 <div>
-                    <label for="name" 
-                    class="block text-yellow-400 font-medium mb-2">Dataset Name</label>
+                    <label for="name" class="block text-yellow-400 font-medium mb-2">
+                        Dataset Name
+                    </label>
                     <input
+                        id="name"
                         name="name"
                         bind:value={form.name}
                         class="w-full bg-[#121212] text-white rounded-lg p-3 focus:ring-2 focus:ring-yellow-400 outline-none"
@@ -50,58 +65,61 @@
                 </div>
 
                 <div>
-                    <label for="shortDescription"
-                    class="block text-yellow-400 font-medium mb-2">Short Description</label>
+                    <label for="displayDescription" class="block text-yellow-400 font-medium mb-2">
+                        Short Description
+                    </label>
                     <textarea
-                        name="shortDescription"
-                        bind:value={form.shortDescription}
+                        id="displayDescription"
+                        name="displayDescription"
+                        bind:value={form.displayDescription}
                         class="w-full bg-[#121212] text-white rounded-lg p-3 h-32 focus:ring-2 focus:ring-yellow-400 outline-none"
                     ></textarea>
-                    
                 </div>
 
+                <!-- Description -->
                 <div>
-                    <label for="description"
-                    class="block text-yellow-400 font-medium mb-2">Description (Markdown)
+                    <label for="description" class="block text-yellow-400 font-medium mb-2">
+                        Description (Markdown)
+                    </label>
                     <textarea
+                        id="description"
                         name="description"
                         bind:value={form.description}
                         class="w-full bg-[#121212] text-white rounded-lg p-3 h-48 font-mono focus:ring-2 focus:ring-yellow-400 outline-none"
-                        ></textarea>
-                    </label>
+                    ></textarea>
                 </div>
 
                 <div>
                     <span class="block text-yellow-400 font-medium mb-2">Select Tags</span>
                     <div class="flex flex-wrap gap-2">
-                        {#each data.tags } <!-- Handle undefined tags -->
+                        {#each data.tags || [] as tag (tag.id)}
                             <button
                                 type="button"
-                                onclick={() => toggleTag(tag.name)} 
+                                onclick={() => toggleTag(tag.id)}
+                                class:bg-yellow-400={form.tags.includes(tag.id)}
                                 class="px-3 py-1 rounded-full transition-colors
-                                    {form.tags.includes(tag.name) 
-                                        ? 'bg-yellow-400 text-gray-900' 
+                                    {form.tags.includes(tag.id)
+                                        ? 'bg-yellow-400 text-gray-900'
                                         : 'bg-[#121212] text-gray-300 hover:bg-yellow-400/10 hover:text-yellow-400'
-                                    } 
-                                    focus:ring-2 focus:ring-yellow-400"
-                                aria-pressed={form.tags.includes(tag.name)}
+                                    } focus:ring-2 focus:ring-yellow-400"
+                                aria-pressed={form.tags.includes(tag.id)}
                             >
                                 {tag.name}
                             </button>
                         {/each}
                     </div>
                     
-                    <!-- Hidden inputs for form submission -->
-                    {#each form.tags as tag}
-                        <input type="hidden" name="tags" value={tag} />
-                    {/each}
+                    <input type="hidden" name="tags" value={form.tags} />
                 </div>
 
+
                 <div>
-                    <label for="file"
-                    class="block text-yellow-400 font-medium mb-2">Dataset File</label>  
+                    <label for="file" class="block text-yellow-400 font-medium mb-2">
+                        Dataset File
+                    </label>  
                     <div class="relative">
                         <input
+                            id="file"
                             name="file"
                             type="file"
                             class="absolute opacity-0 w-full h-full cursor-pointer"
@@ -117,7 +135,6 @@
                         </div>
                     </div>
                 </div>
-                
 
                 <button
                     type="submit"
@@ -127,7 +144,8 @@
                 </button>
 
                 {#if submission.error || submission.success}
-                    <div class:bg-red-100={submission.error} class:bg-green-100={submission.success} class="p-4 rounded-lg">
+                    <div class:bg-red-100={submission.error} class:bg-green-100={submission.success} 
+                         class="p-4 rounded-lg">
                         <span class:text-red-700={submission.error} class:text-green-700={submission.success}>
                             {submission.error || submission.success}
                         </span>
@@ -136,9 +154,8 @@
             </div>
         </form>
 
-        <!-- Preview Section -->
         <div class="bg-[#1e1e1e] rounded-xl shadow-xl p-8 sticky top-4 h-[90vh] overflow-y-auto">
-            <header class="mb-6">
+            <div class="mb-6">
                 <h2 class="text-3xl font-bold text-yellow-400">
                     {form.name || 'Untitled Dataset'}
                 </h2>
@@ -151,17 +168,17 @@
                         {/each}
                     </div>
                 {/if}
-            </header>
+            </div>
 
             <div class="prose prose-invert max-w-none text-lg">
                 {#if form.description}
-                    <div class="preview">{@html marked(form.description)}</div>
+                    {@html marked(form.description)}
                 {:else}
                     <p class="text-gray-400 italic">No description provided</p>
                 {/if}
             </div>
 
-            <footer class="mt-8 pt-6 border-t border-gray-700">
+            <div class="mt-8 pt-6 border-t border-gray-700">
                 <div class="flex items-center gap-3 text-gray-400">
                     <i class="fa-solid fa-folder text-[#FFD54F]"></i>
                     {#if form.file}
@@ -173,7 +190,7 @@
                         <span class="text-gray-500 text-lg">No file selected</span>
                     {/if}
                 </div>
-            </footer>
+            </div>
         </div>
     </div>
 </div>

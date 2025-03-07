@@ -18,7 +18,6 @@
 		return sorted;
 	});
 	let totalPages = $derived(data.datasets?.length ? datasets.length / itemsPerPage : 1);
-	console.log(data);
 </script>
 
 <div class="grid grid-cols-[1fr_3fr] gap-8 p-8 max-w-7xl mx-auto">
