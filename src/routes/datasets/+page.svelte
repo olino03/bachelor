@@ -2,53 +2,42 @@
 	let { data } = $props();
 
 	let searchQuery = $state('');
-	let itemsPerPage = $state(6);
+	let itemsPerPage = $state('6'); // This is some JS bullshit
 	let currentPage = $state(1);
 	let selectedMetric = $state('most-popular');
 
-	// Add page navigation functions
-	const goToPreviousPage = () => {
-		if (currentPage > 1) currentPage--;
-	};
-
-	const goToNextPage = () => {
-		if (currentPage < totalPages) currentPage++;
-	};
-
-	const goToPage = (page) => {
-		currentPage = Math.max(1, Math.min(page, totalPages));
-	};
-
 	const sortDatasets = (datasets) => {
 		if (selectedMetric === 'most-popular') {
-			const sortedDatasets = datasets.sort((a, b) => b.downloads - a.downloads);
-			return sortedDatasets.filter(
-				(dataset) => dataset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-					dataset.description.toLowerCase().includes(searchQuery.toLowerCase())
-			);
+			return [...datasets].sort((a, b) => b.downloads - a.downloads);
 		}
-		else if ( selectedMetric === 'most-hearts') {
-			const sortedDatasets = datasets.sort((a, b) => b.hearts - a.hearts);
-			return sortedDatasets.filter(
-				(dataset) => dataset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-					dataset.description.toLowerCase().includes(searchQuery.toLowerCase())
-			);
-		} else if (selectedMetric === 'recent') {
-			const sortedDatasets = datasets.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-			return sortedDatasets.filter(
-				(dataset) => dataset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-					dataset.description.toLowerCase().includes(searchQuery.toLowerCase())
-			);
+		if (selectedMetric === 'most-hearts') {
+			return [...datasets].sort((a, b) => b.hearts - a.hearts);
 		}
+		if (selectedMetric === 'recent') {
+			return [...datasets].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+		}
+		return datasets;
 	};
 
-	let orderedDataset = $derived(sortDatasets(data.datasets));
+	let orderedDataset = $derived(
+		sortDatasets(data.datasets).filter(
+			(dataset) =>
+				dataset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+				dataset.description.toLowerCase().includes(searchQuery.toLowerCase())
+		)
+	);
+
 	let totalPages = $derived(Math.ceil(orderedDataset.length / itemsPerPage));
-	
 	let startIndex = $derived((currentPage - 1) * itemsPerPage);
 	let endIndex = $derived(startIndex + itemsPerPage);
 	let paginatedDatasets = $derived(orderedDataset.slice(startIndex, endIndex));
-	$inspect(orderedDataset);
+
+	const goToPreviousPage = () => currentPage > 1 && currentPage--;
+	const goToNextPage = () => currentPage < totalPages && currentPage++;
+	const goToPage = (page) => {
+		const newPage = Math.max(1, Math.min(page, totalPages));
+		currentPage = newPage;
+	};
 </script>
 
 <div class="grid grid-cols-[1fr_3fr] gap-8 p-8 max-w-7xl mx-auto">
@@ -78,23 +67,23 @@
 			<div class="mt-6">
 				<h3 class="text-[#f5f5f5] text-lg mb-2">Tags</h3>
 				<ul class="space-y-2">
-					{#each data.tags as data}
+					{#each data.tags as tag}
 						<li class="flex items-center gap-2">
 							<input
 								type="checkbox"
 								class="w-5 h-5 border-2 border-[#FFD54F] rounded-sm bg-transparent appearance-none checked:bg-[#FFD54F]"
 							/>
-							<span>{data.name}</span>
+							<span>{tag.name}</span>
 						</li>
 					{/each}
 				</ul>
 			</div>
 
 			<div class="mt-6 flex items-center gap-2">
-				<label class="text-[#e0e0e0]"></label>
-				Shown Datasets:
+				<label class="text-[#e0e0e0]">Items per page:</label>
 				<select
-					bindvalue={itemsPerPage}
+					bind:value={itemsPerPage}
+					onchange={() => currentPage = 1}
 					class="w-20 px-4 py-2 border border-[#FFD54F] rounded-lg bg-[#2c2c2c] text-white focus:ring-2 focus:ring-[#FFD54F] outline-none"
 				>
 					<option value="6" selected="selected">6</option>
@@ -137,41 +126,41 @@
 			{/if}
 		</section>
 
-		<section class="flex justify-center items-center gap-4 mt-6">
-			{#if currentPage > 1}
-				<button
-					onclick={goToPreviousPage}
-					class="bg-[#FFD54F] text-[#1e1e1e] px-4 py-2 rounded-lg hover:bg-[#FFEA7C] transition-colors"
-				>
-					← Backward
-				</button>
-			{/if}
+		{#if totalPages > 1}
+			<section class="flex justify-center items-center gap-4 mt-6">
+				{#if currentPage > 1}
+					<button
+						onclick={goToPreviousPage}
+						class="bg-[#FFD54F] text-[#1e1e1e] px-4 py-2 rounded-lg hover:bg-[#FFEA7C] transition-colors"
+					>
+					<i class="fa-solid fa-arrow-left"></i>
+					</button>
+				{/if}
 
-			<div
-				class="bg-[#1e1e1e] text-[#e0e0e0] px-4 py-2 rounded-lg shadow-sm flex items-center gap-2"
-			>
-				<label
-					>Page
-					<input
-						type="number"
-						bind:value={currentPage}
-						min="1"
-						max={totalPages}
-						onblur={(e) => goToPage(Number(e.target.value))}
-						class="w-12 text-center border border-[#FFD54F] rounded bg-[#2c2c2c] text-white px-2 focus:outline-none focus:border-[#FFEA7C]"
-					/></label
-				>
-				<span>of {totalPages}</span>
-			</div>
+				<div class="bg-[#1e1e1e] text-[#e0e0e0] px-4 py-2 rounded-lg shadow-sm flex items-center gap-2">
+					<label>
+						Page
+						<input
+							type="number"
+							bind:value={currentPage}
+							min="1"
+							max={totalPages}
+							onblur={(e) => goToPage(Number(e.target.value))}
+							class="w-12 text-center border border-[#FFD54F] rounded bg-[#2c2c2c] text-white px-2 focus:outline-none focus:border-[#FFEA7C]"
+						/>
+					</label>
+					<span>of {totalPages}</span>
+				</div>
 
-			{#if currentPage < totalPages}
-				<button
-					onclick={goToNextPage}
-					class="bg-[#FFD54F] text-[#1e1e1e] px-4 py-2 rounded-lg hover:bg-[#FFEA7C] transition-colors"
-				>
-					Forward →
-				</button>
-			{/if}
-		</section>
+				{#if currentPage < totalPages}
+					<button
+						onclick={goToNextPage}
+						class="bg-[#FFD54F] text-[#1e1e1e] px-4 py-2 rounded-lg hover:bg-[#FFEA7C] transition-colors"
+					>
+						<i class="fa-solid fa-arrow-right"></i>
+					</button>
+				{/if}
+			</section>
+		{/if}
 	</div>
 </div>
