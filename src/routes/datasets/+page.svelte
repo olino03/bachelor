@@ -1,24 +1,54 @@
 <script>
-	import CardTile from '$lib/components/CardTile.svelte';
-
-	let {data} = $props();
+	let { data } = $props();
 
 	let searchQuery = $state('');
 	let itemsPerPage = $state(6);
 	let currentPage = $state(1);
 	let selectedMetric = $state('most-popular');
-	
-	let orderedDataset = $derived(() => {
-		const sorted = [...data.datasets]; 
-		if (selectedMetric === 'most-popular' || selectedMetric === 'most-hearts') {
-			return sorted.sort((a, b) => b.hearts - a.hearts);
-		} else if (selectedMetric === 'recent') {
-			return sorted.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-		}
-		return sorted;
-	});
 
-	let totalPages = $derived(data.datasets?.length ? data.datasets.length / itemsPerPage : 1);
+	// Add page navigation functions
+	const goToPreviousPage = () => {
+		if (currentPage > 1) currentPage--;
+	};
+
+	const goToNextPage = () => {
+		if (currentPage < totalPages) currentPage++;
+	};
+
+	const goToPage = (page) => {
+		currentPage = Math.max(1, Math.min(page, totalPages));
+	};
+
+	const sortDatasets = (datasets) => {
+		if (selectedMetric === 'most-popular') {
+			const sortedDatasets = datasets.sort((a, b) => b.downloads - a.downloads);
+			return sortedDatasets.filter(
+				(dataset) => dataset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+					dataset.description.toLowerCase().includes(searchQuery.toLowerCase())
+			);
+		}
+		else if ( selectedMetric === 'most-hearts') {
+			const sortedDatasets = datasets.sort((a, b) => b.hearts - a.hearts);
+			return sortedDatasets.filter(
+				(dataset) => dataset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+					dataset.description.toLowerCase().includes(searchQuery.toLowerCase())
+			);
+		} else if (selectedMetric === 'recent') {
+			const sortedDatasets = datasets.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+			return sortedDatasets.filter(
+				(dataset) => dataset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+					dataset.description.toLowerCase().includes(searchQuery.toLowerCase())
+			);
+		}
+	};
+
+	let orderedDataset = $derived(sortDatasets(data.datasets));
+	let totalPages = $derived(Math.ceil(orderedDataset.length / itemsPerPage));
+	
+	let startIndex = $derived((currentPage - 1) * itemsPerPage);
+	let endIndex = $derived(startIndex + itemsPerPage);
+	let paginatedDatasets = $derived(orderedDataset.slice(startIndex, endIndex));
+	$inspect(orderedDataset);
 </script>
 
 <div class="grid grid-cols-[1fr_3fr] gap-8 p-8 max-w-7xl mx-auto">
@@ -28,7 +58,7 @@
 
 			<div>
 				<h3 class="text-[#f5f5f5] text-lg mb-2">Sort By</h3>
-				<select 
+				<select
 					class="w-full p-2 bg-[#2c2c2c] text-white border border-[#FFD54F] rounded-lg focus:ring-2 focus:ring-[#FFD54F] focus:outline-none"
 					bind:value={selectedMetric}
 				>
@@ -58,31 +88,53 @@
 						</li>
 					{/each}
 				</ul>
-			</div>			
+			</div>
 
 			<div class="mt-6 flex items-center gap-2">
 				<label class="text-[#e0e0e0]"></label>
-					Shown Datasets:
-					<select
-						bindvalue={itemsPerPage}
-						class="w-20 px-4 py-2 border border-[#FFD54F] rounded-lg bg-[#2c2c2c] text-white focus:ring-2 focus:ring-[#FFD54F] outline-none"
-					>
-						<option value="6" selected="selected">6</option>
-						<option value="12">12</option>
-						<option value="24">24</option>
-					</select>
-				
+				Shown Datasets:
+				<select
+					bindvalue={itemsPerPage}
+					class="w-20 px-4 py-2 border border-[#FFD54F] rounded-lg bg-[#2c2c2c] text-white focus:ring-2 focus:ring-[#FFD54F] outline-none"
+				>
+					<option value="6" selected="selected">6</option>
+					<option value="12">12</option>
+					<option value="24">24</option>
+				</select>
 			</div>
-
-			
 		</div>
 	</section>
 
 	<div class="w-full">
-		<section class="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr)] gap-6 min-h-[300px]">
-			<!-- {#each data.datasets as dataset}
-				<CardTile {dataset} />
-			{/each} -->
+		<section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+			{#if paginatedDatasets.length > 0}
+				{#each paginatedDatasets as dataset}
+					<div class="bg-[#1e1e1e] rounded-lg shadow-sm p-6 mb-6">
+						<h1 class="text-xl font-semibold text-[#FFD54F] mb-3">
+							{dataset.name}
+						</h1>
+						<p class="text-sm text-[#f5f5f5] mb-4 leading-normal">
+							{dataset.description}
+						</p>
+						<div class="flex gap-6 pt-3 border-t border-gray-200">
+							<div class="flex gap-2 items-center">
+								<p class="text-lg font-semibold text-white">
+									{dataset.hearts}
+								</p>
+								<i class="fa-solid fa-heart text-[#FFD54F]"></i>
+							</div>
+							<div class="flex items-center gap-2">
+								<p class="text-lg font-semibold text-white">
+									{dataset.downloads}
+								</p>
+								<i class="fa-solid fa-download text-[#FFD54F]"></i>
+							</div>
+						</div>
+					</div>
+				{/each}
+			{:else}
+				<p class="text-[#FFD54F] text-lg">No datasets found</p>
+			{/if}
 		</section>
 
 		<section class="flex justify-center items-center gap-4 mt-6">

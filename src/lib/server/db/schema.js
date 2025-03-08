@@ -22,7 +22,7 @@ export const model = pgTable('model', {
     description: text('description'),
     displayDescription: text('displayDescription'),
     hearts: integer('hearts').notNull().default(0),
-    downloadCount: integer('download_count').default(0),
+    downloads: integer('download_count').default(0),
     createdAt: timestamp('created_at').defaultNow(),
 });
 
@@ -34,7 +34,7 @@ export const dataset = pgTable('dataset', {
     displayDescription: text('displayDescription'),
     description: text('description'),
     hearts: integer('hearts').notNull().default(0),
-    downloadCount: integer('download_count').default(0),
+    downloads: integer('download_count').default(0),
     createdAt: timestamp('created_at').defaultNow(),
 });
 
