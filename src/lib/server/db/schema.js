@@ -17,7 +17,7 @@ export const session = pgTable('session', {
 // Models Table
 export const model = pgTable('model', {
     id: serial('id').primaryKey(),
-    userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
+    uploadedBy: text('uploaded_by').references(() => user.username, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     description: text('description'),
     displayDescription: text('displayDescription'),
@@ -29,7 +29,7 @@ export const model = pgTable('model', {
 // Datasets Table
 export const dataset = pgTable('dataset', {
     id: serial('serial').primaryKey(),
-    userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
+    uploadedBy: text('uploaded_by').references(() => user.username, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     displayDescription: text('displayDescription'),
     description: text('description'),

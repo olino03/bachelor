@@ -3,7 +3,7 @@ import * as auth from '$lib/server/auth';
 import { fail } from '@sveltejs/kit';
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db/index';
-import { dataset, tag } from '$lib/server/db/schema';
+import { dataset, tag, datasetTag } from '$lib/server/db/schema';
 
 export const actions = {
     logout: async (event) => {
@@ -15,18 +15,27 @@ export const actions = {
 
         throw redirect(302, '/');
     }
-    
+
 };
 
 export async function load() {
     try {
         const allDatasets = await db.select().from(dataset);
         const allTags = await db.select().from(tag);
-        return { datasets: allDatasets, tags: allTags};
+        const datasetTagRelation = await db.select().from(datasetTag);
+        
+        const joinedDatasets = allDatasets.map(dataset => ({
+            ...dataset,
+            tags: datasetTagRelation
+                .filter(relation => relation.datasetId === dataset.id)
+                .map(relation => allTags.find(tag => tag.id === relation.tagId))
+                .filter(Boolean) // Remove any potential undefined values
+        }));
+        return {datasets: joinedDatasets, tags: allTags};
     } catch (error) {
-        return { 
+        return {
             datasets: [],
-            error: 'Failed to fetch datasets: ' + error.message 
+            error: 'Failed to fetch datasets: ' + error.message
         };
     }
 }

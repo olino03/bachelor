@@ -7,16 +7,11 @@
 
     let form = $state({
         name: '',
-        userID: '',
+        username: '',
         displayDescription: '',
         description: '',
         tags: [],
         file: null
-    });
-
-    let submission = $state({
-        error: '',
-        success: ''
     });
 
     const toggleTag = (tagId) => {
@@ -34,6 +29,7 @@
     let fileSize = $derived(
         form.file ? (form.file.size / 1024 / 1024).toFixed(2) + ' MB' : ''
     );
+    console.log(data);
 </script>
 
 <div class="max-w-[1600px] mx-auto p-8">
@@ -48,7 +44,7 @@
             enctype="multipart/form-data"
         >
             {#if $page.data.user}
-                <input type="hidden" name="userID" value={$page.data.user.id} />
+                <input type="hidden" name="username" value={$page.data.user.username} />
             {/if}
             <div class="space-y-6">
                 <div>
@@ -143,12 +139,15 @@
                     Upload Dataset
                 </button>
 
-                {#if submission.error || submission.success}
-                    <div class:bg-red-100={submission.error} class:bg-green-100={submission.success} 
-                         class="p-4 rounded-lg">
-                        <span class:text-red-700={submission.error} class:text-green-700={submission.success}>
-                            {submission.error || submission.success}
-                        </span>
+                {#if $page.form?.message && !$page.form?.success}
+                    <div class="bg-red-700 text-red-100 p-4 rounded-lg text-center">
+                        <span>{$page.form.message}</span>
+                    </div>
+                {/if}
+
+                {#if $page.form?.success}
+                    <div class="bg-green-700 text-green-100 p-4 rounded-lg text-center">
+                        <span>{$page.form.message}</span>
                     </div>
                 {/if}
             </div>

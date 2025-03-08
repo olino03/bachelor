@@ -6,7 +6,7 @@
 	let searchQuery = $state('');
 	let itemsPerPage = $state(6);
 	let currentPage = $state(1);
-	let selectedMetric = $state('');
+	let selectedMetric = $state('most-popular');
 	
 	let orderedDataset = $derived(() => {
 		const sorted = [...data.datasets]; 
@@ -17,18 +17,32 @@
 		}
 		return sorted;
 	});
-	let totalPages = $derived(data.datasets?.length ? datasets.length / itemsPerPage : 1);
+
+	let totalPages = $derived(data.datasets?.length ? data.datasets.length / itemsPerPage : 1);
 </script>
 
 <div class="grid grid-cols-[1fr_3fr] gap-8 p-8 max-w-7xl mx-auto">
 	<section class="flex justify-center items-start">
 		<div class="bg-[#1e1e1e] rounded-lg shadow-md p-6 w-full max-w-xs text-[#e0e0e0]">
 			<h2 class="text-[#FFD54F] text-xl font-bold text-center pb-4">Filters</h2>
+
+			<div>
+				<h3 class="text-[#f5f5f5] text-lg mb-2">Sort By</h3>
+				<select 
+					class="w-full p-2 bg-[#2c2c2c] text-white border border-[#FFD54F] rounded-lg focus:ring-2 focus:ring-[#FFD54F] focus:outline-none"
+					bind:value={selectedMetric}
+				>
+					<option value="most-popular" selected="selected">Most Popular</option>
+					<option value="most-hearts">Most Hearts</option>
+					<option value="recent">Recently Added</option>
+				</select>
+			</div>
+
 			<input
 				type="text"
 				bind:value={searchQuery}
 				placeholder="Search datasets..."
-				class="w-full px-4 py-2 bg-[#2c2c2c] text-white rounded-lg mb-4 focus:ring-2 focus:ring-[#FFD54F] focus:outline-none transition-all"
+				class="mt-6 w-full px-4 py-2 bg-[#2c2c2c] border border-[#FFD54F] text-white rounded-lg focus:ring-2 focus:ring-[#FFD54F] focus:outline-none transition-all"
 			/>
 
 			<div class="mt-6">
@@ -44,32 +58,20 @@
 						</li>
 					{/each}
 				</ul>
-			</div>
-
-			<div class="mt-6">
-				<h3 class="text-[#f5f5f5] text-lg mb-2">Sort By</h3>
-				<select 
-					class="w-full p-2 bg-[#2c2c2c] text-white border border-[#FFD54F] rounded-lg focus:ring-2 focus:ring-[#FFD54F] focus:outline-none"
-					bind:value={selectedMetric}
-				>
-					<option value="most-popular">Most Popular</option>
-					<option value="most-hearts">Most Hearts</option>
-					<option value="recent">Recently Added</option>
-				</select>
-			</div>
+			</div>			
 
 			<div class="mt-6 flex items-center gap-2">
-				<label class="text-[#e0e0e0]"
-					>Show Datasets:
+				<label class="text-[#e0e0e0]"></label>
+					Shown Datasets:
 					<select
-						bind:value={itemsPerPage}
-						class="px-4 py-2 border border-[#FFD54F] rounded-lg bg-[#2c2c2c] text-white focus:ring-2 focus:ring-[#FFD54F] outline-none"
+						bindvalue={itemsPerPage}
+						class="w-20 px-4 py-2 border border-[#FFD54F] rounded-lg bg-[#2c2c2c] text-white focus:ring-2 focus:ring-[#FFD54F] outline-none"
 					>
-						<option value="6">6</option>
+						<option value="6" selected="selected">6</option>
 						<option value="12">12</option>
 						<option value="24">24</option>
 					</select>
-				</label>
+				
 			</div>
 
 			
@@ -78,9 +80,9 @@
 
 	<div class="w-full">
 		<section class="grid grid-cols-[repeat(auto-fit,minmax(250px,1fr)] gap-6 min-h-[300px]">
-			{#each data.datasets as dataset}
+			<!-- {#each data.datasets as dataset}
 				<CardTile {dataset} />
-			{/each}
+			{/each} -->
 		</section>
 
 		<section class="flex justify-center items-center gap-4 mt-6">
