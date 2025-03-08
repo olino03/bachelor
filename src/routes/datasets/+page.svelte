@@ -5,6 +5,7 @@
 	let itemsPerPage = $state('6'); // This is some JS bullshit
 	let currentPage = $state(1);
 	let selectedMetric = $state('most-popular');
+	let selectedTags = $state([]);
 
 	const sortDatasets = (datasets) => {
 		if (selectedMetric === 'most-popular') {
@@ -20,10 +21,13 @@
 	};
 
 	let orderedDataset = $derived(
-		sortDatasets(data.datasets).filter(
-			(dataset) =>
-				dataset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				dataset.description.toLowerCase().includes(searchQuery.toLowerCase())
+		sortDatasets(data.datasets).filter(dataset => 
+			(dataset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			dataset.description.toLowerCase().includes(searchQuery.toLowerCase())) &&
+			(selectedTags.length === 0 || 
+			 selectedTags.every(tag => 
+				dataset.tags.some(datasetTag => datasetTag.name === tag)
+			))
 		)
 	);
 
@@ -72,6 +76,8 @@
 							<input
 								type="checkbox"
 								class="w-5 h-5 border-2 border-[#FFD54F] rounded-sm bg-transparent appearance-none checked:bg-[#FFD54F]"
+								bind:group={selectedTags}
+								value={tag.name}
 							/>
 							<span>{tag.name}</span>
 						</li>
