@@ -44,9 +44,9 @@
 	};
 </script>
 
-<div class="grid grid-cols-[1fr_3fr] gap-8 p-8 max-w-7xl mx-auto">
+<div class="w-full grid sm:grid-cols-[1fr_1fr] md:grid-cols-[1fr_3fr] gap-8 p-8 max-w-7xl mx-auto">
 	<section class="flex justify-center items-start">
-		<div class="bg-[#1e1e1e] rounded-lg shadow-md p-6 w-full max-w-xs text-[#e0e0e0]">
+		<div class="bg-[#1e1e1e] rounded-lg shadow-md p-6 w-full min-w-[260px] text-[#e0e0e0]">
 			<h2 class="text-[#FFD54F] text-xl font-bold text-center pb-4">Filters</h2>
 
 			<div>
@@ -74,11 +74,11 @@
 					{#each data.tags as tag}
 						<li class="flex items-center gap-2">
 							<input
-								type="checkbox"
-								class="w-5 h-5 border-2 border-[#FFD54F] rounded-sm bg-transparent appearance-none checked:bg-[#FFD54F]"
-								bind:group={selectedTags}
-								value={tag.name}
-							/>
+							type="checkbox"
+							class="w-5 h-5 border-2 border-[#FFD54F] rounded-sm bg-transparent appearance-none checked:bg-[#FFD54F] focus:ring-2 focus:ring-[#FFD54F] focus:outline-none"
+							bind:group={selectedTags}
+							value={tag.name}
+						/>
 							<span>{tag.name}</span>
 						</li>
 					{/each}
@@ -90,7 +90,7 @@
 				<select
 					bind:value={itemsPerPage}
 					onchange={() => currentPage = 1}
-					class="w-20 px-4 py-2 border border-[#FFD54F] rounded-lg bg-[#2c2c2c] text-white focus:ring-2 focus:ring-[#FFD54F] outline-none"
+					class="w-20 px-4 py-2 border border-[#FFD54F] rounded-lg bg-[#2c2c2c] text-white focus:ring-2 focus:ring-[#FFD54F] outline-none accent-yellow"
 				>
 					<option value="6" selected="selected">6</option>
 					<option value="12">12</option>
