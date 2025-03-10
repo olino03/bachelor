@@ -15,7 +15,7 @@ export async function load() {
     } catch (error) {
         return {
             tags: [],
-            error: 'Failed to fetch datasets: ' + error.message
+            error: 'Failed to fetch tags: ' + error.message
         };
     }
 }
@@ -76,7 +76,7 @@ export const actions = {
                     name,
                     displayDescription,
                     description,
-                    filePath
+                    filePath: uniqueFileName
                 }).returning({ id: dataset.id });
 
                 if (tags.length > 0) {

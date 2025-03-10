@@ -105,6 +105,7 @@
 			{#if paginatedDatasets.length > 0}
 				{#each paginatedDatasets as dataset}
 					<div class="bg-[#1e1e1e] rounded-lg shadow-sm p-6 mb-6">
+						<a href={`/datasets/${dataset.id}`}>
 						<h1 class="text-xl font-semibold text-[#FFD54F] mb-3">
 							{dataset.name}
 						</h1>
@@ -125,6 +126,7 @@
 								<i class="fa-solid fa-download text-[#FFD54F]"></i>
 							</div>
 						</div>
+						</a>
 					</div>
 				{/each}
 			{:else}

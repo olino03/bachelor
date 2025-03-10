@@ -15,7 +15,6 @@ export const actions = {
 
         throw redirect(302, '/');
     }
-
 };
 
 export async function load() {
@@ -23,7 +22,7 @@ export async function load() {
         const allDatasets = await db.select().from(dataset);
         const allTags = await db.select().from(tag);
         const datasetTagRelation = await db.select().from(datasetTag);
-        
+
         const joinedDatasets = allDatasets.map(dataset => ({
             ...dataset,
             tags: datasetTagRelation
@@ -31,7 +30,7 @@ export async function load() {
                 .map(relation => allTags.find(tag => tag.id === relation.tagId))
                 .filter(Boolean) // Remove any potential undefined values
         }));
-        return {datasets: joinedDatasets, tags: allTags};
+        return { datasets: joinedDatasets, tags: allTags };
     } catch (error) {
         return {
             datasets: [],

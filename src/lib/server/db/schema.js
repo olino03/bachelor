@@ -20,7 +20,8 @@ export const model = pgTable('model', {
     uploadedBy: text('uploaded_by').references(() => user.username, { onDelete: 'cascade' }),
     name: text('name').notNull(),
     description: text('description'),
-    displayDescription: text('displayDescription'),
+    filePath: text('file_path').notNull(),
+    displayDescription: text('display_description'),
     hearts: integer('hearts').notNull().default(0),
     downloads: integer('download_count').default(0),
     createdAt: timestamp('created_at').defaultNow(),
@@ -28,11 +29,12 @@ export const model = pgTable('model', {
 
 // Datasets Table
 export const dataset = pgTable('dataset', {
-    id: serial('serial').primaryKey(),
+    id: serial('id').primaryKey(),
     uploadedBy: text('uploaded_by').references(() => user.username, { onDelete: 'cascade' }),
     name: text('name').notNull(),
-    displayDescription: text('displayDescription'),
+    displayDescription: text('display_description'),
     description: text('description'),
+    filePath: text('file_path').notNull(),
     hearts: integer('hearts').notNull().default(0),
     downloads: integer('download_count').default(0),
     createdAt: timestamp('created_at').defaultNow(),
