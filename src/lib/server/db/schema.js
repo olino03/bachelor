@@ -14,6 +14,25 @@ export const session = pgTable('session', {
 	expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull()
 });
 
+// Conversation Table
+export const conversation = pgTable('conversation', {
+    id: serial('id').primaryKey(),
+    name: text('name').notNull(),
+    userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
+// Message Table
+export const message = pgTable('message', {
+    id: serial('id').primaryKey(),
+    conversationId: integer('conversation_id').notNull().references(() => conversation.id, { onDelete: 'cascade' }),
+    role: text('role').notNull(),
+    content: text('content').notNull(),
+    sequence: integer('sequence').notNull(),
+    model: text('model'),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
 // Models Table
 export const model = pgTable('model', {
     id: serial('id').primaryKey(),
