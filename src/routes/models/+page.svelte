@@ -131,7 +131,7 @@
 					</div>
 				{/each}
 			{:else}
-				<p class="text-[#FFD54F] text-lg">No datasets found</p>
+				<p class="text-[#FFD54F] text-lg">No models found</p>
 			{/if}
 		</section>
 

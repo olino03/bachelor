@@ -4,6 +4,7 @@ import { conversation, message, inferenceModel } from '$lib/server/db/schema.js'
 import { env } from '$env/dynamic/private';
 import { goto } from '$app/navigation';
 import { redirect } from '@sveltejs/kit';
+import * as auth from '$lib/server/auth';
 
 export const actions = {
     logout: async (event) => {

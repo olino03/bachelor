@@ -31,7 +31,7 @@
 				<i class="fa-solid fa-user mr-2"></i> {$page.data.user.username}
 			</span>
 			<form method="post" action="?/logout" use:enhance>
-				<button class="text-[#ffd54f] text-[0.9rem] font-medium bg-transparent border-none cursor-pointer transition-colors duration-200 hover:text-white">
+				<button class="text-[#ffd54f] font-medium bg-transparent border-none cursor-pointer transition-colors duration-200 hover:text-white">
 					Logout
 				</button>
 			</form>
