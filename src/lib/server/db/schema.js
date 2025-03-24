@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, timestamp, primaryKey, numeric } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, integer, timestamp, primaryKey, numeric, boolean } from 'drizzle-orm/pg-core';
 
 export const user = pgTable('user', {
 	id: text('id').primaryKey(),
@@ -14,15 +14,14 @@ export const session = pgTable('session', {
 	expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull()
 });
 
-// Conversation Table
 export const conversation = pgTable('conversation', {
     id: serial('id').primaryKey(),
     name: text('name').notNull(),
     userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+    inferenceModelId: integer('inference_model_id').notNull().references(() => inferenceModel.id),
     createdAt: timestamp('created_at').defaultNow(),
 });
 
-// Message Table
 export const message = pgTable('message', {
     id: serial('id').primaryKey(),
     conversationId: integer('conversation_id').notNull().references(() => conversation.id, { onDelete: 'cascade' }),
@@ -33,7 +32,14 @@ export const message = pgTable('message', {
     createdAt: timestamp('created_at').defaultNow(),
 });
 
-// Models Table
+export const inferenceModel = pgTable('inference_model', {
+    id: serial('id').primaryKey(),
+    ollamaName: text('ollama_name').notNull().unique(),
+    name: text('name').notNull(),
+    isDefault: boolean('is_default').default(false),
+    createdAt: timestamp('created_at').defaultNow(),
+});
+
 export const model = pgTable('model', {
     id: serial('id').primaryKey(),
     uploadedBy: text('uploaded_by').references(() => user.username, { onDelete: 'cascade' }),
@@ -46,7 +52,6 @@ export const model = pgTable('model', {
     createdAt: timestamp('created_at').defaultNow(),
 });
 
-// Datasets Table
 export const dataset = pgTable('dataset', {
     id: serial('id').primaryKey(),
     uploadedBy: text('uploaded_by').references(() => user.username, { onDelete: 'cascade' }),
@@ -59,7 +64,6 @@ export const dataset = pgTable('dataset', {
     createdAt: timestamp('created_at').defaultNow(),
 });
 
-// Tags Table
 export const tag = pgTable('tag', {
     id: serial('id').primaryKey(),
     name: text('name').notNull().unique(),
@@ -74,7 +78,6 @@ export const modelTag = pgTable('model_tag', {
     primaryKey: primaryKey({ columns: [table.modelId, table.tagId] }),
 }));
 
-// DatasetTags Table (Many-to-Many)
 export const datasetTag = pgTable('dataset_tag', {
     datasetId: integer('dataset_id')
         .references(() => dataset.id, { onDelete: 'cascade' }),
