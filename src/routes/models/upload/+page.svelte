@@ -33,7 +33,7 @@
 </script>
 
 <div class="max-w-[1600px] mx-auto p-8">
-    <h1 class="text-3xl font-bold text-yellow-400 mb-8 text-center">Upload New Dataset</h1>
+    <h1 class="text-3xl font-bold text-yellow-400 mb-8 text-center">Upload New Model</h1>
 
     <div class="grid grid-cols-1 xl:grid-cols-[1fr_2fr] gap-8">
         <form
@@ -49,7 +49,7 @@
             <div class="space-y-6">
                 <div>
                     <label for="name" class="block text-yellow-400 font-medium mb-2">
-                        Dataset Name
+                        Model Name
                     </label>
                     <input
                         id="name"
@@ -111,7 +111,7 @@
 
                 <div>
                     <label for="file" class="block text-yellow-400 font-medium mb-2">
-                        Dataset File
+                        Model File
                     </label>  
                     <div class="relative">
                         <input
@@ -136,7 +136,7 @@
                     type="submit"
                     class="w-full bg-yellow-400 text-gray-900 font-bold py-3 rounded-lg hover:bg-yellow-300 transition-colors"
                 >
-                    Upload Dataset
+                    Upload Model
                 </button>
 
                 {#if $page.form?.message && !$page.form?.success}
@@ -156,7 +156,7 @@
         <div class="bg-[#1e1e1e] rounded-xl shadow-xl p-8 sticky top-4 h-[90vh] overflow-y-auto">
             <div class="mb-6">
                 <h2 class="text-3xl font-bold text-yellow-400">
-                    {form.name || 'Untitled Dataset'}
+                    {form.name || 'Untitled Model'}
                 </h2>
                 {#if tagList.length > 0}
                     <div class="flex flex-wrap gap-2 mt-4">

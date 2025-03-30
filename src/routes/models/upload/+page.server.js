@@ -1,12 +1,12 @@
 import * as auth from '$lib/server/auth';
 import { db } from '$lib/server/db/index';
 import { fail, redirect } from '@sveltejs/kit';
-import { dataset, tag, datasetTag } from '$lib/server/db/schema';
+import { model, tag, modelTag } from '$lib/server/db/schema';
 import path from 'path';
 import fs from 'fs';
 
 
-const UPLOADS_DIR = path.resolve('static', 'datasets');
+const UPLOADS_DIR = path.resolve('static', 'models');
 
 export async function load() {
     try {
@@ -71,28 +71,28 @@ export const actions = {
             fs.writeFileSync(filePath, fileBuffer);
 
             await db.transaction(async (tx) => {
-                const [lastEntry] = await db.insert(dataset).values({
+                const [lastEntry] = await db.insert(model).values({
                     uploadedBy: username,
                     name,
                     displayDescription,
                     description,
                     filePath: uniqueFileName
-                }).returning({ id: dataset.id });
+                }).returning({ id: model.id });
 
                 if (tags.length > 0) {
-                    await db.insert(datasetTag).values(
+                    await db.insert(modelTag).values(
                         tags.map(tagId => ({
-                            datasetId: lastEntry.id,
+                            modelId: lastEntry.id,
                             tagId: tagId
                         }))
                     );
                 }
             });
 
-            return {success: true, message: 'Dataset uploaded successfully'};
+            return {success: true, message: 'Model uploaded successfully'};
         } catch (message) {
             return fail(500, {
-                message: message || 'Failed to upload dataset'
+                message: message || 'Failed to upload model'
             });
         }
     }

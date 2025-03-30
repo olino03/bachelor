@@ -3,7 +3,7 @@ import * as auth from '$lib/server/auth';
 import { fail } from '@sveltejs/kit';
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db/index';
-import { dataset, tag, datasetTag } from '$lib/server/db/schema';
+import { model, tag, modelTag } from '$lib/server/db/schema';
 
 export const actions = {
     logout: async (event) => {
@@ -19,22 +19,22 @@ export const actions = {
 
 export async function load() {
     try {
-        const allDatasets = await db.select().from(dataset);
+        const allModels = await db.select().from(model);
         const allTags = await db.select().from(tag);
-        const datasetTagRelation = await db.select().from(datasetTag);
+        const modelTagRelation = await db.select().from(modelTag);
 
-        const joinedDatasets = allDatasets.map(dataset => ({
-            ...dataset,
+        const joinedModels = allModels.map(model => ({
+            ...model,
             tags: datasetTagRelation
-                .filter(relation => relation.datasetId === dataset.id)
+                .filter(relation => relation.modelId === model.id)
                 .map(relation => allTags.find(tag => tag.id === relation.tagId))
                 .filter(Boolean) // Remove any potential undefined values
         }));
-        return { datasets: joinedDatasets, tags: allTags };
+        return { models: joinedModels, tags: allTags };
     } catch (error) {
         return {
-            datasets: [],
-            error: 'Failed to fetch datasets: ' + error.message
+            models: [],
+            error: 'Failed to fetch models: ' + error.message
         };
     }
 }

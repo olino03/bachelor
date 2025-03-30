@@ -7,34 +7,34 @@
 	let selectedMetric = $state('most-popular');
 	let selectedTags = $state([]);
 
-	const sortDatasets = (datasets) => {
+	const sortModels = (models) => {
 		if (selectedMetric === 'most-popular') {
-			return [...datasets].sort((a, b) => b.downloads - a.downloads);
+			return [...models].sort((a, b) => b.downloads - a.downloads);
 		}
 		if (selectedMetric === 'most-hearts') {
-			return [...datasets].sort((a, b) => b.hearts - a.hearts);
+			return [...models].sort((a, b) => b.hearts - a.hearts);
 		}
 		if (selectedMetric === 'recent') {
-			return [...datasets].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+			return [...models].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 		}
-		return datasets;
+		return models;
 	};
 
-	let orderedDataset = $derived(
-		sortDatasets(data.datasets).filter(dataset => 
-			(dataset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			dataset.description.toLowerCase().includes(searchQuery.toLowerCase())) &&
+	let orderedModel = $derived(
+		sortModels(data.models).filter(model => 
+			(model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			model.description.toLowerCase().includes(searchQuery.toLowerCase())) &&
 			(selectedTags.length === 0 || 
 			 selectedTags.every(tag => 
-				dataset.tags.some(datasetTag => datasetTag.name === tag)
+				model.tags.some(modelTag => modelTag.name === tag)
 			))
 		)
 	);
 
-	let totalPages = $derived(Math.ceil(orderedDataset.length / itemsPerPage));
+	let totalPages = $derived(Math.ceil(orderedModel.length / itemsPerPage));
 	let startIndex = $derived((currentPage - 1) * itemsPerPage);
 	let endIndex = $derived(startIndex + itemsPerPage);
-	let paginatedDatasets = $derived(orderedDataset.slice(startIndex, endIndex));
+	let paginatedmodels = $derived(orderedModel.slice(startIndex, endIndex));
 
 	const goToPreviousPage = () => currentPage > 1 && currentPage--;
 	const goToNextPage = () => currentPage < totalPages && currentPage++;
@@ -64,7 +64,7 @@
 			<input
 				type="text"
 				bind:value={searchQuery}
-				placeholder="Search datasets..."
+				placeholder="Search models..."
 				class="mt-6 w-full px-4 py-2 bg-[#2c2c2c] border border-[#FFD54F] text-white rounded-lg focus:ring-2 focus:ring-[#FFD54F] focus:outline-none transition-all"
 			/>
 
@@ -97,32 +97,32 @@
 					<option value="24">24</option>
 				</select>
 			</div>
-			<button class="mt-4 p-4 rounded-lg w-full bg-[#ffe54f] text-[#1e1e1e]"><a href='/datasets/upload'>Upload your own</a></button>
+			<button class="mt-6 p-4 rounded-lg w-full bg-[#ffe54f] text-[#1e1e1e]"><a href='/models/upload'>Upload your own</a></button>
 		</div>
 	</section>
 
 	<div class="w-full">
 		<section class="grid grid-cols-1 md:grid-cols-2 gap-6">
-			{#if paginatedDatasets.length > 0}
-				{#each paginatedDatasets as dataset}
+			{#if paginatedmodels.length > 0}
+				{#each paginatedmodels as model}
 					<div class="bg-[#1e1e1e] rounded-lg shadow-sm p-6 mb-6">
-						<a href={`/datasets/${dataset.id}`}>
+						<a href={`/models/${model.id}`}>
 						<h1 class="text-xl font-semibold text-[#FFD54F] mb-3">
-							{dataset.name}
+							{model.name}
 						</h1>
 						<p class="text-sm text-[#f5f5f5] mb-4 leading-normal">
-							{dataset.description}
+							{model.description}
 						</p>
 						<div class="flex gap-6 pt-3 border-t border-gray-200">
 							<div class="flex gap-2 items-center">
 								<p class="text-lg font-semibold text-white">
-									{dataset.hearts}
+									{model.hearts}
 								</p>
 								<i class="fa-solid fa-heart text-[#FFD54F]"></i>
 							</div>
 							<div class="flex items-center gap-2">
 								<p class="text-lg font-semibold text-white">
-									{dataset.downloads}
+									{model.downloads}
 								</p>
 								<i class="fa-solid fa-download text-[#FFD54F]"></i>
 							</div>

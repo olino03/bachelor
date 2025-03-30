@@ -97,7 +97,7 @@
 					<option value="24">24</option>
 				</select>
 			</div>
-			<button class="mt-4 p-4 rounded-lg w-full bg-[#ffe54f] text-[#1e1e1e]"><a href='/datasets/upload'>Upload your own</a></button>
+			<button class="mt-6 p-4 rounded-lg w-full bg-[#ffe54f] text-[#1e1e1e]"><a href='/datasets/upload'>Upload your own</a></button>
 		</div>
 	</section>
 
@@ -111,7 +111,7 @@
 							{dataset.name}
 						</h1>
 						<p class="text-sm text-[#f5f5f5] mb-4 leading-normal">
-							{dataset.description}
+							{dataset.displayDescription}
 						</p>
 						<div class="flex gap-6 pt-3 border-t border-gray-200">
 							<div class="flex gap-2 items-center">
