@@ -1,29 +1,186 @@
 <script>
     import { page } from '$app/stores';
-	import { enhance } from '$app/forms';
+    import { enhance } from '$app/forms';
+    import { SSE } from 'sse.js';
 
-	let { data } = $props();
+    let { data } = $props();
 
-	let selectedModel = $state('gemma:2b');
+    let selectedModel = $state('gemma:2b');
+    let editingId = $state(null);
+    let draftName = $state('');
+    let newMessage = $state('');
+    let error = $state('');
+    let submitting = $state(false);
+    let streamBuffer = $state('');
+    let scrollTarget = $state(null);
+    let tempAssistantMessageId = $state(null);
 
-	let editingId = $state(null);
-	let draftName = $state('');
-	let newMessage = $state('');
-	let error = $state('');
-	let submitting = $state(false);
+    let currentConversation = $derived(
+        data.conversations.find((c) => c.id === Number($page.params.conversationID))
+    );
 
-	let currentConversation = $derived(
-		data.conversations.find((c) => c.id === Number($page.params.conversationID))
-	);
-	let currentModel = $derived(
-		data.models.find((m) => m.id === currentConversation.inferenceModelId)
-	);
-	$inspect(currentConversation);
-	$inspect(currentModel);
+    let currentModel = $derived(
+        data.models.find((m) => m.id === currentConversation?.inferenceModelId)
+    );
+
+    function scrollToBottom() {
+        setTimeout(() => {
+            scrollTarget?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }, 100);
+    }
+
+    async function handleSubmit() {
+        if (submitting || !newMessage.trim()) return;
+
+        submitting = true;
+        error = '';
+        const userMessage = newMessage.trim();
+        const userTempId = Date.now();
+        const assistantTempId = Date.now() + 1;
+
+        // Optimistically add user message
+        if (currentConversation) {
+            data = {
+                ...data,
+                conversations: data.conversations.map((c) =>
+                    c.id === currentConversation.id
+                        ? {
+                            ...c,
+                            messages: [
+                                ...c.messages,
+                                {
+                                    id: userTempId,
+                                    content: userMessage,
+                                    role: 'user',
+                                    createdAt: new Date().toISOString(),
+                                    sequence: c.messages.length + 1,
+                                    status: 'complete'
+                                }
+                            ]
+                        }
+                        : c
+                )
+            };
+            tempAssistantMessageId = assistantTempId;
+        }
+        newMessage = '';
+
+        try {
+            const eventSource = new SSE('/inference', {
+                headers: { 'Content-Type': 'application/json' },
+                payload: JSON.stringify({
+                    conversationId: currentConversation.id,
+                    userMessage: userMessage
+                })
+            });
+
+            eventSource.addEventListener('message', async (e) => {
+                try {
+                    if (e.data === '[DONE]') {
+                        // Finalize assistant message
+                        data = {
+                            ...data,
+                            conversations: data.conversations.map((c) =>
+                                c.id === currentConversation.id
+                                    ? {
+                                        ...c,
+                                        messages: c.messages.map((m) =>
+                                            m.id === assistantTempId
+                                                ? { ...m, status: 'complete' }
+                                                : m
+                                        )
+                                    }
+                                    : c
+                            )
+                        };
+                        streamBuffer = '';
+                        tempAssistantMessageId = null;
+                        return;
+                    }
+
+                    const parsed = JSON.parse(e.data);
+                    streamBuffer += parsed.response;
+
+                    // Update or create temporary assistant message
+                    data = {
+                        ...data,
+                        conversations: data.conversations.map((c) =>
+                            c.id === currentConversation.id
+                                ? {
+                                    ...c,
+                                    messages: c.messages.some((m) => m.id === assistantTempId)
+                                        ? c.messages.map((m) =>
+                                            m.id === assistantTempId
+                                                ? {
+                                                    ...m,
+                                                    content: streamBuffer,
+                                                    status: 'streaming'
+                                                }
+                                                : m
+                                        )
+                                        : [
+                                            ...c.messages,
+                                            {
+                                                id: assistantTempId,
+                                                content: streamBuffer,
+                                                role: 'assistant',
+                                                createdAt: new Date().toISOString(),
+                                                sequence: c.messages.length + 2,
+                                                status: 'streaming'
+                                            }
+                                        ]
+                                }
+                                : c
+                        )
+                    };
+                    
+                    scrollToBottom();
+                } catch (err) {
+                    console.error('Error handling stream:', err);
+                }
+            });
+
+            eventSource.addEventListener('error', (err) => {
+                error = 'Failed to stream response';
+                submitting = false;
+                streamBuffer = '';
+                // Rollback both messages
+                data = {
+                    ...data,
+                    conversations: data.conversations.map((c) =>
+                        c.id === currentConversation.id
+                            ? {
+                                ...c,
+                                messages: c.messages.filter((m) => 
+                                    m.id !== userTempId && m.id !== assistantTempId
+                                )
+                            }
+                            : c
+                    )
+                };
+                tempAssistantMessageId = null;
+            });
+
+            eventSource.stream();
+
+        } catch (err) {
+            error = 'Failed to send message';
+            submitting = false;
+            streamBuffer = '';
+            tempAssistantMessageId = null;
+        } finally {
+            submitting = false;
+        }
+    }
+
+    $effect(() => {
+        scrollToBottom();
+    });
 </script>
 
 <div class="flex h-[95vh] bg-[#121212]">
-	<div class="w-64 flex flex-col p-4 bg-[#1e1e1e]">
+
+    <div class="w-64 flex flex-col p-4 bg-[#1e1e1e]">
 		<div class="mb-2 flex-1 overflow-y-auto"
             style="
             scrollbar-color: #ffd54f #121212;
@@ -84,126 +241,82 @@
 		</form>
 	</div>
 
-	<div class="flex-1 flex flex-col">
-		<div class="flex-1 overflow-y-auto p-4 space-y-4">
-			{#each currentConversation.messages as message}
-				<div class="flex {message.role === 'user' ? 'justify-end' : 'justify-start'}">
-					<div
-						class="max-w-3xl p-4 rounded-lg {message.role === 'user'
-							? 'bg-[#ffd54f] text-[#1e1e1e]'
-							: 'bg-[#1e1e1e] text-white'}"
-					>
-						{message.content}
-					</div>
-				</div>
-			{/each}
-		</div>
+    <div class="flex-1 flex flex-col">
+        <div class="flex-1 overflow-y-auto p-4 space-y-4">
+            {#if currentConversation?.messages}
+                {#each currentConversation.messages as message}
+                    <div class="flex {message.role === 'user' ? 'justify-end' : 'justify-start'}">
+                        <div class="max-w-3xl p-4 rounded-lg 
+                                  {message.role === 'user' 
+                                   ? 'bg-[#ffd54f] text-[#1e1e1e]' 
+                                   : 'bg-[#1e1e1e] text-white'}
+                                  {message.status === 'streaming' ? 'opacity-75' : ''}">
+                            {#if message.status === 'streaming'}
+                                <div class="flex items-center gap-2">
+                                    <span class="animate-pulse">...</span>
+                                </div>
+                            {/if}
+                            {message.content}
+                        </div>
+                    </div>
+                {/each}
+            {:else}
+                <div class="text-center text-gray-400 mt-8">
+                    Start a new conversation by typing a message below
+                </div>
+            {/if}
+            <div bind:this={scrollTarget} ></div>
+        </div>
 
-		<div class="p-4 bg-[#1e1e1e] border-t border-[#ffd54f]">
-			<div class="max-w-4xl mx-auto relative">
-				<div class="flex gap-2">
-					<form method="POST" action="?/change_model" use:enhance class="flex-none w-40">
-						<select
-							name="model"
-							onchange={(e) => e.target.form.requestSubmit()}
-							class="w-full px-3 py-2 bg-[#121212] text-white border-none rounded-lg focus:ring-2 focus:ring-[#ffd54f]"
-							disabled={submitting}
-						>
-							{#each data.models as model}
-								<option value={model.id} selected={model.id === currentModel.id}>
-									{model.name}
-								</option>
-							{/each}
-						</select>
-					</form>
+        <div class="p-4 bg-[#1e1e1e] border-t border-[#ffd54f]">
+            <div class="max-w-4xl mx-auto relative">
+                <div class="flex gap-2">
+                    <form method="POST" action="?/change_model" use:enhance class="flex-none w-40">
+                        <select
+                            name="model"
+                            onchange={(e) => e.target.form.requestSubmit()}
+                            class="w-full px-3 py-2 bg-[#121212] text-white border-none rounded-lg focus:ring-2 focus:ring-[#ffd54f]"
+                            disabled={submitting}
+                        >
+                            {#each data.models as model}
+                                <option value={model.id} selected={model.id === currentModel?.id}>
+                                    {model.name}
+                                </option>
+                            {/each}
+                        </select>
+                    </form>
 
-					<form
-						method="POST"
-						action="?/submit_message"
-						use:enhance={() => {
-							submitting = true;
-							const originalMessage = newMessage;
-							const tempId = Date.now();
+                    <form onsubmit={handleSubmit} class="flex-1">
+                        <div class="flex gap-2">
+                            <input
+                                type="text"
+                                bind:value={newMessage}
+                                placeholder="Type your message..."
+                                class="flex-1 px-4 py-2 bg-[#121212] text-white rounded-lg border-none focus:ring-2 focus:ring-[#ffd54f]"
+                                disabled={submitting}
+                                onkeydown={(e) => e.key === 'Enter' && !e.shiftKey && handleSubmit()}
+                            />
+                            <button
+                                type="submit"
+                                class="px-6 py-2 bg-[#ffd54f] hover:bg-white text-[#1e1e1e] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled={!newMessage.trim() || submitting}
+                            >
+                                {#if submitting}
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                {:else}
+                                    Send
+                                {/if}
+                            </button>
+                        </div>
+                    </form>
+                </div>
 
-							// Optimistically add message
-							if (currentConversation) {
-								data = {
-									...data,
-									conversations: data.conversations.map((c) =>
-										c.id === currentConversation.id
-											? {
-													...c,
-													messages: [
-														...c.messages,
-														{
-															id: tempId,
-															content: originalMessage,
-															role: 'user',
-															createdAt: new Date().toISOString()
-														}
-													]
-												}
-											: c
-									)
-								};
-							}
-							newMessage = '';
-
-							return async ({ update }) => {
-								try {
-									await update();
-								} catch (err) {
-									// Rollback on error
-									if (currentConversation) {
-										data = {
-											...data,
-											conversations: data.conversations.map((c) =>
-												c.id === currentConversation.id
-													? {
-															...c,
-															messages: c.messages.filter((m) => m.id !== tempId)
-														}
-													: c
-											)
-										};
-									}
-									newMessage = originalMessage;
-									error = 'Failed to send message';
-								}
-								submitting = false;
-							};
-						}}
-						class="flex-1"
-					>
-						<div class="flex gap-2">
-							<input
-								type="text"
-								name="message"
-								bind:value={newMessage}
-								placeholder="Type your message..."
-								class="flex-1 px-4 py-2 bg-[#121212] text-white rounded-lg border-none focus:ring-2 focus:ring-[#ffd54f]"
-								disabled={submitting}
-							/>
-
-							<button
-								type="submit"
-								class="px-6 py-2 bg-[#ffd54f] hover:bg-white text-[#1e1e1e] rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-								disabled={!newMessage.trim() || submitting}
-							>
-								{#if submitting}
-									<i class="fas fa-spinner fa-spin"></i>
-								{:else}
-									Send
-								{/if}
-							</button>
-						</div>
-					</form>
-				</div>
-			</div>
-
-			{#if error}
-				<div class="mt-2 text-red-400 text-sm text-center">{error}</div>
-			{/if}
-		</div>
-	</div>
+                {#if error}
+                    <div class="mt-2 text-red-400 text-sm text-center">
+                        {error}
+                    </div>
+                {/if}
+            </div>
+        </div>
+    </div>
 </div>
