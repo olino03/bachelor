@@ -84,64 +84,6 @@ export const actions = {
         }).where(eq(conversation.id, conversationId));
 
         return redirect(302, `/inference/${conversationId}`)
-    },
-    submit_message: async (event) => {
-        if (!event.locals.session) return fail(401);
-
-        const conversationId = await event.params.conversationID;
-        const formData = await event.request.formData();
-        const userMessage = formData.get('message');
-
-        const [usedModelId] = await db.select({ id: conversation.inferenceModelId })
-            .from(conversation)
-            .where(eq(conversation.id, conversationId));
-
-        const [ollamaModelName] = await db.select({ name: inferenceModel.ollamaName })
-            .from(inferenceModel)
-            .where(eq(inferenceModel.id, usedModelId.id));
-
-        const [maxSeq] = await db.select({ max: max(message.sequence) })
-            .from(message)
-            .where(eq(message.conversationId, conversationId));
-
-        const sequence = (maxSeq?.max || 0) + 1;
-
-        const ollamaResponse = await fetch(`${env.OLLAMA_URL}/api/generate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: ollamaModelName.name,
-                prompt: userMessage,
-                stream: false
-            })
-        });
-
-        if (!ollamaResponse.ok) {
-            throw new Error(`Ollama error: ${ollamaResponse.statusText}`);
-        }
-        const ollamaData = await ollamaResponse.json();
-        const assistantResponse = ollamaData.response;
-
-        await db.insert(message).values({
-            conversationId,
-            content: userMessage,
-            role: 'user',
-            sequence
-        });
-    
-        await db.insert(message).values({
-            conversationId,
-            content: assistantResponse,
-            role: 'assistant',
-            sequence: sequence + 1
-        });
-
-        const updatedMessages = await db.select()
-            .from(message)
-            .where(eq(message.conversationId, conversationId))
-            .orderBy(asc(message.sequence));
-
-        return redirect(302, `/inference/${conversationId}`)
     }
 };
 
