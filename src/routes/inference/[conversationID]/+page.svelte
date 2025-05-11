@@ -2,6 +2,7 @@
     import { page } from '$app/stores';
     import { enhance } from '$app/forms';
     import { SSE } from 'sse.js';
+	import { marked } from 'marked';
 
     let { data } = $props();
 
@@ -22,6 +23,28 @@
     let currentModel = $derived(
         data.models.find((m) => m.id === currentConversation?.inferenceModelId)
     );
+
+	marked.setOptions({
+        breaks: true,
+        gfm: true,
+        sanitize: true // Basic HTML sanitization
+    });
+
+    function processContent(content) {
+        const thinkBlocks = [];
+        let processed = content;
+
+        // Extract <think> blocks
+        processed = processed.replace(/<think>([\s\S]*?)<\/think>/gi, (match, p1) => {
+            thinkBlocks.push(p1.trim());
+            return '';
+        });
+
+        return {
+            html: marked.parse(processed.trim()),
+            thinkBlocks
+        };
+    }
 
     function scrollToBottom() {
         setTimeout(() => {
@@ -245,21 +268,39 @@
         <div class="flex-1 overflow-y-auto p-4 space-y-4">
             {#if currentConversation?.messages}
                 {#each currentConversation.messages as message}
-                    <div class="flex {message.role === 'user' ? 'justify-end' : 'justify-start'}">
-                        <div class="max-w-3xl p-4 rounded-lg 
-                                  {message.role === 'user' 
-                                   ? 'bg-[#ffd54f] text-[#1e1e1e]' 
-                                   : 'bg-[#1e1e1e] text-white'}
-                                  {message.status === 'streaming' ? 'opacity-75' : ''}">
-                            {#if message.status === 'streaming'}
-                                <div class="flex items-center gap-2">
-                                    <span class="animate-pulse">...</span>
-                                </div>
-                            {/if}
-                            {message.content}
-                        </div>
-                    </div>
-                {/each}
+					<div class="flex {message.role === 'user' ? 'justify-end' : 'justify-start'}">
+						<div class={`max-w-3xl p-4 rounded-lg ${
+							message.role === 'user' 
+							? 'bg-[#ffd54f] text-[#1e1e1e]' 
+							: 'bg-[#1e1e1e] text-white'
+						} ${message.status === 'streaming' ? 'opacity-90' : ''}`}>
+							{#if message.role === 'assistant'}
+								{@const { html, thinkBlocks } = processContent(message.content)}
+								
+								{#if thinkBlocks.length > 0}
+									<div class="mb-4 border-l-4 border-amber-400 pl-3 py-2 bg-gray-700/50 rounded-r">
+										<div class="text-sm font-medium text-amber-400 mb-1">Thinking</div>
+										{#each thinkBlocks as block}
+											<div class="text-gray-300 text-sm whitespace-pre-wrap font-mono">{block}</div>
+										{/each}
+									</div>
+								{/if}
+
+								{#if html}
+									<div class="prose prose-invert prose-sm max-w-none">
+										{@html html}
+									</div>
+								{/if}
+							{:else}
+								<div class="whitespace-pre-wrap">{message.content}</div>
+							{/if}
+
+							{#if message.status === 'streaming'}
+								<div class="mt-2 h-1 w-12 bg-amber-400/50 rounded-full animate-pulse"></div>
+							{/if}
+						</div>
+					</div>
+				{/each}
             {:else}
                 <div class="text-center text-gray-400 mt-8">
                     Start a new conversation by typing a message below

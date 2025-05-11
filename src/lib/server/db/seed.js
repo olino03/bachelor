@@ -1,7 +1,10 @@
-import 'dotenv/config'; // Step 1b: Load .env variables into process.env
+import 'dotenv/config';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { inferenceModel } from './schema';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 async function seedDatabase() {
   const databaseUrl = process.env.DATABASE_URL;
@@ -21,43 +24,43 @@ async function seedDatabase() {
     await db.delete(inferenceModel);
     console.log('Existing models deleted.');
 
-    console.log('Fetching models from API (https://ollama-models.zwz.workers.dev/)...');
-    const response = await fetch('https://ollama-models.zwz.workers.dev/', { method: 'GET' });
+    // Get path to JSON file using import.meta.url
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const jsonPath = path.join(__dirname, 'ollama_models.json');
+    console.log(`Loading models from: ${jsonPath}`);
 
-    if (!response.ok) {
-      throw new Error(`API request failed with status ${response.status}`);
+    if (!fs.existsSync(jsonPath)) {
+      throw new Error(`JSON file not found at ${jsonPath}`);
     }
 
-    const fetchedModels = await response.json();
-    console.log('Models fetched successfully from API.');
+    const jsonData = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
 
-    if (fetchedModels && Array.isArray(fetchedModels) && fetchedModels.length > 0) {
-      const modelsToInsert = fetchedModels.map((model, index) => ({
-        ollamaName: model.name,
-        name: model.name,
-        isDefault: index === 0,
-      }));
+    if (Array.isArray(jsonData) && jsonData.length > 0) {
+      const modelsToInsert = jsonData.flatMap((model, modelIndex) => 
+        model.weight.map((weight, weightIndex) => ({
+          ollamaName: `${model.name}:${weight}`,
+          name: model.name,
+          isDefault: modelIndex === 0 && weightIndex === 0
+        }))
+      );
 
-      if (modelsToInsert.length > 0) {
-        console.log(`Preparing to insert ${modelsToInsert.length} models...`);
-        const defaultModel = modelsToInsert.find(m => m.isDefault);
-        if (defaultModel) {
-          console.log(`Setting '${defaultModel.ollamaName}' as the default model.`);
-        }
-        await db.insert(inferenceModel).values(modelsToInsert);
-        console.log('Models inserted successfully.');
-      } else {
-        console.log('No models to insert (array was empty after mapping, which is unexpected here).');
+      console.log(`Preparing to insert ${modelsToInsert.length} model variants...`);
+      
+      const defaultModel = modelsToInsert.find(m => m.isDefault);
+      if (defaultModel) {
+        console.log(`Setting '${defaultModel.ollamaName}' as the default model.`);
       }
-    } else if (fetchedModels && Array.isArray(fetchedModels) && fetchedModels.length === 0) {
-      console.log('API returned an empty array of models. No models to insert.');
-    }
-    else {
-      console.log('Fetched data is not a valid array of models or API response was unexpected.');
+      
+      await db.insert(inferenceModel).values(modelsToInsert);
+      console.log('Model variants inserted successfully.');
+    } else {
+      console.log('No models found in JSON file or invalid format');
     }
 
   } catch (error) {
     console.error('Error during database seeding:', error);
+    process.exit(1);
   } finally {
     await client.end();
     console.log('Database seed process finished.');

@@ -27,9 +27,11 @@
 
 	<div class="flex items-center">
 		{#if $page.data.user}
-			<span class="text-[#ffd54f] font-medium mr-4">
-				<i class="fa-solid fa-user mr-2"></i> {$page.data.user.username}
-			</span>
+			<a href="/user">
+				<span class="text-[#ffd54f] font-medium mr-4">
+					<i class="fa-solid fa-user mr-2"></i> {$page.data.user.username}
+				</span>
+			</a>
 			<form method="post" action="?/logout" use:enhance>
 				<button class="text-[#ffd54f] font-medium bg-transparent border-none cursor-pointer transition-colors duration-200 hover:text-white">
 					Logout

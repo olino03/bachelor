@@ -3,7 +3,9 @@ import { pgTable, serial, text, integer, timestamp, primaryKey, numeric, boolean
 export const user = pgTable('user', {
 	id: text('id').primaryKey(),
 	username: text('username').notNull().unique(),
-	passwordHash: text('password_hash').notNull()
+	passwordHash: text('password_hash').notNull(),
+    cloudUrl: text('cloud_url'),
+    cloudKey: text('cloud_key'),
 });
 
 export const session = pgTable('session', {
@@ -62,6 +64,16 @@ export const dataset = pgTable('dataset', {
     hearts: integer('hearts').notNull().default(0),
     downloads: integer('download_count').default(0),
     createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const localModel = pgTable('local_model', {
+    userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+    modelId: integer('model_id').notNull().references(() => inferenceModel.id, { onDelete: 'cascade' }),
+});
+
+export const cloudModel = pgTable('cloud_model', {
+    userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+    modelId: integer('model_id').notNull().references(() => inferenceModel.id, { onDelete: 'cascade' })
 });
 
 export const tag = pgTable('tag', {
