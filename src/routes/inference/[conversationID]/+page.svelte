@@ -2,7 +2,7 @@
     import { page } from '$app/stores';
     import { enhance } from '$app/forms';
     import { SSE } from 'sse.js';
-	import { marked } from 'marked';
+	import { marked, use } from 'marked';
 
     let { data } = $props();
 
@@ -11,6 +11,7 @@
     let draftName = $state('');
     let newMessage = $state('');
     let error = $state('');
+    let useCloudModels = $state(false);
     let submitting = $state(false);
     let streamBuffer = $state('');
     let scrollTarget = $state(null);
@@ -21,7 +22,7 @@
     );
 
     let currentModel = $derived(
-        data.models.find((m) => m.id === currentConversation?.inferenceModelId)
+        data.localModels.find((m) => m.id === currentConversation?.inferenceModelId)
     );
 
 	marked.setOptions({
@@ -61,7 +62,6 @@
         const userTempId = Date.now();
         const assistantTempId = Date.now() + 1;
 
-        // Optimistically add user message
         if (currentConversation) {
             data = {
                 ...data,
@@ -92,6 +92,7 @@
             const eventSource = new SSE('/inference', {
                 headers: { 'Content-Type': 'application/json' },
                 payload: JSON.stringify({
+                    useCloud: useCloudModels,
                     conversationId: currentConversation.id,
                     userMessage: userMessage
                 })
@@ -199,6 +200,7 @@
     $effect(() => {
         scrollToBottom();
     });
+
 </script>
 
 <div class="flex h-[95vh] bg-[#121212]">
@@ -255,13 +257,25 @@
 				</div>
 			{/each}
 		</div>
-		<form method="POST" action="?/new_conversation" use:enhance>
-			<button
-				class="w-full py-2 px-4 bg-[#ffd54f] hover:bg-white text-[#1e1e1e] rounded-lg transition-colors"
-			>
-				New Conversation
-			</button>
-		</form>
+        <div class="flex flex-col items-center justify-between gap-4">
+            <form class="w-full" method="POST" action="?/new_conversation" use:enhance>
+                <button
+                    class="w-full py-2 px-4 bg-[#ffd54f] hover:bg-white text-[#1e1e1e] rounded-lg transition-colors"
+                >
+                    New Conversation
+                </button>
+            </form>
+
+            <a class="w-full" href="/inference/upload">
+                <button
+                        class="w-full py-2 px-4 bg-[#ffd54f] hover:bg-white text-[#1e1e1e] rounded-lg transition-colors"
+                    >
+                    
+                        Talk to your own model
+                    
+                </button>
+            </a>
+        </div>
 	</div>
 
     <div class="flex-1 flex flex-col">
@@ -312,6 +326,30 @@
         <div class="p-4 bg-[#1e1e1e] border-t border-[#ffd54f]">
             <div class="max-w-4xl mx-auto relative">
                 <div class="flex gap-2">
+                    <div class="flex-none">
+                        <div 
+                            class="relative flex items-center h-10 bg-[#121212] rounded-full p-1 cursor-pointer w-44"
+                            onclick={() => useCloudModels = !useCloudModels}
+                        >
+                            <!-- Slider Background -->
+                            <div class="absolute inset-0 flex items-center justify-between px-3 text-sm font-medium">
+                                <span class="text-white">Local</span>
+                                <span class="text-white">Cloud</span>
+                            </div>
+                    
+                            <!-- Slider Knob -->
+                            <div
+                                class="absolute h-8 w-20 bg-[#ffd54f] rounded-full transition-all duration-300 ease-in-out"
+                                class:translate-x-[88px]={useCloudModels}
+                            >
+                                <!-- Active Label -->
+                                <span class="absolute inset-0 flex items-center justify-center text-sm font-medium text-black">
+                                    {useCloudModels ? 'Cloud' : 'Local'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                
                     <form method="POST" action="?/change_model" use:enhance class="flex-none w-40">
                         <select
                             name="model"
@@ -319,11 +357,19 @@
                             class="w-full px-3 py-2 bg-[#121212] text-white border-none rounded-lg focus:ring-2 focus:ring-[#ffd54f]"
                             disabled={submitting}
                         >
-                            {#each data.models as model}
-                                <option value={model.id} selected={model.id === currentModel?.id}>
-                                    {model.name}
-                                </option>
-                            {/each}
+                            {#if useCloudModels }
+                                {#each data.cloudModels as model}
+                                    <option value={model.id} selected={model.id === currentModel?.id}>
+                                        {model.name}
+                                    </option>
+                                {/each}
+                            {:else}
+                                {#each data.localModels as model}
+                                    <option value={model.id} selected={model.id === currentModel?.id}>
+                                        {model.name}
+                                    </option>
+                                {/each}
+                            {/if}
                         </select>
                     </form>
 

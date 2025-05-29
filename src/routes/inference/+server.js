@@ -1,13 +1,15 @@
-// routes/api/chat/+server.js
 import { env } from '$env/dynamic/private';
 import { json } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { message, conversation, inferenceModel } from '$lib/server/db/schema';
+import { message, conversation, inferenceModel, user } from '$lib/server/db/schema';
 import { eq, and, max } from 'drizzle-orm';
+import { callCloudRun } from '$lib';
 
 export async function POST({ request }) {
     try {
-        const { conversationId, userMessage } = await request.json();
+        const { useCloud, conversationId, userMessage } = await request.json();
+
+        console.log(useCloud, conversationId, userMessage);
 
         const [conv] = await db.select()
             .from(conversation)
@@ -34,18 +36,45 @@ export async function POST({ request }) {
             sequence
         });
 
-        const ollamaRes = await fetch(`${env.OLLAMA_URL}/api/generate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: model.ollamaName,
-                prompt: userMessage,
-                stream: true
-            })
-        });
+        let ollamaRes = null;
+        
+        if (useCloud) {
+            const [userData] = await db.select()
+                .from(user)
+                .where(eq(user.id, conv.userId));
 
-        if (!ollamaRes.ok) {
-            throw new Error(await ollamaRes.text());
+            if (userData.length <= 0) return json({ error: 'User not found' }, { status: 404 });
+
+            ollamaRes = await callCloudRun({
+                cloudUrl: userData.cloudUrl,
+                cloudKeyJsonString: userData.cloudKey,
+                path: '/api/generate',
+                method: 'POST',
+                body: {
+                    model: model.ollamaName,
+                    prompt: userMessage,
+                    stream: true
+                }
+            });
+            
+            if (!ollamaRes.ok) {
+                throw new Error(await ollamaRes.text());
+            }
+        }
+        else {
+            ollamaRes = await fetch(`${env.OLLAMA_URL}/api/generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: model.ollamaName,
+                    prompt: userMessage,
+                    stream: true
+                })
+            });
+
+            if (!ollamaRes.ok) {
+                throw new Error(await ollamaRes.text());
+            }
         }
 
         const reader = ollamaRes.body.getReader();

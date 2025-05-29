@@ -1,6 +1,6 @@
 import { eq, inArray, desc, asc, and, max } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
-import { conversation, message, inferenceModel } from '$lib/server/db/schema.js';
+import { conversation, message, inferenceModel, localModel, cloudModel } from '$lib/server/db/schema.js';
 import { env } from '$env/dynamic/private';
 import { goto } from '$app/navigation';
 import { redirect } from '@sveltejs/kit';
@@ -20,8 +20,8 @@ export const actions = {
         if (!event.locals.session) return fail(401);
 
         const [defaultModel] = await db.select()
-                .from(inferenceModel).
-                where(eq(inferenceModel.isDefault, true));
+            .from(inferenceModel).
+            where(eq(inferenceModel.isDefault, true));
 
         const [newConversation] = await db.insert(conversation)
             .values({
@@ -38,7 +38,7 @@ export const actions = {
         const formData = await event.request.formData();
         const conversationId = formData.get('conversationId');
 
-        const wantedConversation = await db.select({userId: conversation.userId})
+        const wantedConversation = await db.select({ userId: conversation.userId })
             .from(conversation)
             .where(eq(conversation.id, conversationId))
 
@@ -65,7 +65,7 @@ export const actions = {
                 eq(conversation.id, conversationId),
                 eq(conversation.userId, event.locals.session.userId)
             )).returning();
-        
+
         if (!updateConversation.length) {
             return fail(404, { message: 'Conversation not found' })
         }
@@ -78,7 +78,7 @@ export const actions = {
         const conversationId = await event.params.conversationID;
 
         const newInferenceModelId = formData.get('model');
-        
+
         await db.update(conversation).set({
             inferenceModelId: newInferenceModelId
         }).where(eq(conversation.id, conversationId));
@@ -91,19 +91,19 @@ export async function load({ locals, params }) {
     if (!locals?.user?.id) throw redirect(302, '/login');
 
     const userID = locals.user.id;
-    const conversationID = params.conversationID; 
+    const conversationID = params.conversationID;
 
     if (isNaN(conversationID)) throw redirect(404, '/inference');
 
     const [currentConversation] = await db.select()
-    .from(conversation)
-    .where(and(
+        .from(conversation)
+        .where(and(
             eq(conversation.id, conversationID),
             eq(conversation.userId, userID)
         )).limit(1);
 
     if (!currentConversation) throw redirect(302, '/inference');
-    
+
     const userConversations = await db.select()
         .from(conversation)
         .where(eq(conversation.userId, userID))
@@ -113,12 +113,12 @@ export async function load({ locals, params }) {
         .from(message)
         .where(eq(message.conversationId, conversationID))
         .orderBy(asc(message.sequence));
-    
+
     const conversationsWithMessages = userConversations.map(conv => {
         const isSelected = conv.id === Number(conversationID);
         return {
             ...conv,
-            ...(isSelected && { messages }) 
+            ...(isSelected && { messages })
         };
     });
 
@@ -127,9 +127,40 @@ export async function load({ locals, params }) {
         name: inferenceModel.name,
     }).from(inferenceModel);
 
+    const localModels = await db
+        .select({
+            id: inferenceModel.id,
+            ollamaName: inferenceModel.ollamaName,
+            name: inferenceModel.name,
+            isDefault: inferenceModel.isDefault,
+            createdAt: inferenceModel.createdAt
+        })
+        .from(localModel)
+        .innerJoin(
+            inferenceModel,
+            eq(localModel.modelId, inferenceModel.id)
+        )
+        .where(eq(localModel.userId, userID));
+
+    const cloudModels = await db
+        .select({
+            id: inferenceModel.id,
+            ollamaName: inferenceModel.ollamaName,
+            name: inferenceModel.name,
+            isDefault: inferenceModel.isDefault,
+            createdAt: inferenceModel.createdAt
+        })
+        .from(cloudModel)
+        .innerJoin(
+            inferenceModel,
+            eq(cloudModel.modelId, inferenceModel.id)
+        )
+        .where(eq(cloudModel.userId, userID));
+
     return {
         conversations: conversationsWithMessages,
-        models: models,
+        cloudModels: cloudModels,
+        localModels: localModels,
         selectedConversationId: Number(conversationID)
     };
 }

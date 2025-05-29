@@ -76,6 +76,16 @@ export const cloudModel = pgTable('cloud_model', {
     modelId: integer('model_id').notNull().references(() => inferenceModel.id, { onDelete: 'cascade' })
 });
 
+export const customLocalModel = pgTable('custom_model', {
+    userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+    modelName: text('model_name').notNull(),
+});
+
+export const customCloudModel = pgTable('custom_cloud_model', {
+    userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+    modelName: text('model_name').notNull(),
+})
+
 export const tag = pgTable('tag', {
     id: serial('id').primaryKey(),
     name: text('name').notNull().unique(),
