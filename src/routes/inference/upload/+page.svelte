@@ -8,29 +8,25 @@
         name: '',
         ggufFile: null,
         modelfileFile: null,
-        uploadToCloud: false // New state for the checkbox
+        uploadToCloud: false
     });
 
     let modelfileError = $state(null);
 
     const handleModelfile = (e) => {
         const file = e.target.files[0];
-        if (file && file.size > 1024 * 1024) { // 1MB
+        if (file && file.size > 1024 * 1024) {
             modelfileError = 'Modelfile must be smaller than 1MB';
             form.modelfileFile = null;
-            e.target.value = ''; // Reset file input
+            e.target.value = '';
         } else {
             modelfileError = null;
             form.modelfileFile = file;
         }
     };
-
-    // Initialize checkbox based on prop, if needed (optional)
-    // This ensures the checkbox reflects an initial server-side preference if data.canUploadToCloud is true
-    // and you perhaps have a default preference.
-    // If you always want it to default to false client-side, you can skip this.
+    
     if (data?.canUploadToCloud) {
-        // form.uploadToCloud = true; // Or some other default based on your logic
+        form.uploadToCloud = true;
     }
 
     console.log('Page data:', data);
@@ -99,7 +95,7 @@
                         id="modelfile"
                         name="modelfile"
                         type="file"
-                        accept=".Modelfile"
+                        accept=".Modelfile" 
                         class="absolute opacity-0 w-full h-full cursor-pointer"
                         onchange={handleModelfile}
                     />
@@ -128,9 +124,8 @@
             <div class="flex items-center mt-6">
                 <input
                     id="uploadToCloud"
-                    name="uploadToCloud"
-                    type="checkbox"
-                    bind:checked={form.uploadToCloud}
+                    name="useCloud" type="checkbox"
+                    value="true"   bind:checked={form.uploadToCloud}
                     class="h-5 w-5 text-yellow-400 bg-gray-700 border-gray-600 rounded focus:ring-yellow-500 focus:ring-offset-gray-800 cursor-pointer"
                 />
                 <label for="uploadToCloud" class="ml-3 text-yellow-400 font-medium cursor-pointer">
@@ -159,4 +154,4 @@
             </div>
         {/if}
     </form>
-</div>
+</div>  

@@ -7,9 +7,9 @@ import { callCloudRun } from '$lib';
 
 export async function POST({ request }) {
     try {
-        const { useCloud, conversationId, userMessage } = await request.json();
+        const { useCloud, useCustomModels, conversationId, userMessage, modelName } = await request.json();
 
-        console.log(useCloud, conversationId, userMessage);
+        console.log('Received request:', { useCloud, useCustomModels, conversationId, userMessage, modelName });
 
         const [conv] = await db.select()
             .from(conversation)
@@ -61,8 +61,42 @@ export async function POST({ request }) {
                 throw new Error(await ollamaRes.text());
             }
         }
-        else {
-            ollamaRes = await fetch(`${env.OLLAMA_URL}/api/generate`, {
+        else if (useCustomModels) {
+            const [placeToRun, modelNameToRun] = modelName.split(':');
+            console.log(modelName)
+            if (placeToRun === 'local') {
+                ollamaRes = await fetch(`${env.OLLAMA_URL}/api/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: modelNameToRun,
+                        prompt: userMessage,
+                        stream: true
+                    })
+                });
+            }
+            else if (placeToRun === 'cloud') {
+                const [userData] = await db.select()
+                .from(user)
+                .where(eq(user.id, conv.userId));
+
+                if (userData.length <= 0) return json({ error: 'User not found' }, { status: 404 });
+
+                ollamaRes = await callCloudRun({
+                    cloudUrl: userData.cloudUrl,
+                    cloudKeyJsonString: userData.cloudKey,
+                    path: '/api/generate',
+                    method: 'POST',
+                    body: {
+                        model: modelNameToRun,
+                        prompt: userMessage,
+                        stream: true
+                    }
+                });
+            }
+        }
+        else {            
+                ollamaRes = await fetch(`${env.OLLAMA_URL}/api/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

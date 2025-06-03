@@ -1,15 +1,17 @@
-import * as auth from '$lib/server/auth'; 
+import * as auth from '$lib/server/auth';
 import { env } from '$env/dynamic/private';
-import { db } from '$lib/server/db/index'; 
+import { db } from '$lib/server/db/index';
 import { fail, redirect } from '@sveltejs/kit';
-import { customLocalModel, customCloudModel, user } from '$lib/server/db/schema'; 
+import { customLocalModel, customCloudModel, user } from '$lib/server/db/schema';
 import crypto from 'crypto';
 import { eq } from 'drizzle-orm';
+import { GoogleAuth } from 'google-auth-library';
+import { blob } from 'stream/consumers';
 
 function parseModelfileContent(modelfileString) {
-    const directives = {}; 
-    const parameters = {}; 
-    let messagesList = []; 
+    const directives = {};
+    const parameters = {};
+    let messagesList = [];
 
     let currentBlockType = null;
     let currentBlockLines = [];
@@ -33,43 +35,37 @@ function parseModelfileContent(modelfileString) {
                 currentBlockType = null;
                 currentBlockLines = [];
             } else {
-                currentBlockLines.push(line); // Add the raw line
+                currentBlockLines.push(line);
             }
-            continue; // Line processed as part of a """ block
+            continue;
         }
 
-        // 2. Handle MESSAGES block content or termination
         if (inMessagesBlock) {
-            // Check if the current line terminates the MESSAGES block by being a new top-level directive
             if (upperTrimmedLine.startsWith('PARAMETER ') ||
                 upperTrimmedLine.startsWith('TEMPLATE """') ||
-                upperTrimmedLine.startsWith('SYSTEM """') || // This is the SYSTEM """ directive, not a message role
+                upperTrimmedLine.startsWith('SYSTEM """') ||
                 upperTrimmedLine.startsWith('LICENSE ') ||
                 upperTrimmedLine.startsWith('FROM ') ||
-                upperTrimmedLine.startsWith('ADAPTER ')) { // ADAPTER also terminates MESSAGES
-                
+                upperTrimmedLine.startsWith('ADAPTER ')) {
+
                 if (messagesList.length > 0) {
                     directives.messages = messagesList;
                 }
                 inMessagesBlock = false;
-                messagesList = []; // Reset for safety, though a new MESSAGES block would also reset
-                // Fall through to process this line as a new directive
+                messagesList = [];
             } else {
-                // Try to parse as a "ROLE content" line
                 const firstWord = originalTrimmedLine.split(/\s+/)[0];
                 if (firstWord && validMessageRoles.includes(firstWord.toUpperCase())) {
                     const role = firstWord.toLowerCase();
                     const content = originalTrimmedLine.substring(firstWord.length).trim();
                     messagesList.push({ role, content });
                 } else if (originalTrimmedLine !== '' && !originalTrimmedLine.startsWith('#')) {
-                    // Non-empty, not a comment, and not a valid role line within MESSAGES block
                     console.warn(`Modelfile parsing: Ignoring line in MESSAGES block (expected ROLE Content): "${originalTrimmedLine}"`);
                 }
-                continue; // Line processed (or ignored) within MESSAGES block
+                continue;
             }
         }
 
-        // 3. Handle start of new directives (if not in """ block and not in MESSAGES content)
         if (upperTrimmedLine.startsWith('TEMPLATE """')) {
             currentBlockType = 'TEMPLATE';
             const contentAfterDirective = line.substring(upperTrimmedLine.indexOf('TEMPLATE """') + 'TEMPLATE """'.length);
@@ -82,7 +78,7 @@ function parseModelfileContent(modelfileString) {
             } else if (contentAfterDirective.trim() !== '') {
                 currentBlockLines.push(contentAfterDirective);
             }
-        } else if (upperTrimmedLine.startsWith('SYSTEM """')) { // SYSTEM directive with """
+        } else if (upperTrimmedLine.startsWith('SYSTEM """')) {
             currentBlockType = 'SYSTEM';
             const contentAfterDirective = line.substring(upperTrimmedLine.indexOf('SYSTEM """') + 'SYSTEM """'.length);
             if (contentAfterDirective.trim().endsWith('"""') && contentAfterDirective.trim() !== '"""') {
@@ -94,14 +90,13 @@ function parseModelfileContent(modelfileString) {
             } else if (contentAfterDirective.trim() !== '') {
                 currentBlockLines.push(contentAfterDirective);
             }
-        } else if (upperTrimmedLine === 'MESSAGES') { // Exactly "MESSAGES"
+        } else if (upperTrimmedLine === 'MESSAGES') {
             inMessagesBlock = true;
-            // If there was a previous unterminated messages block, finalize it (though not standard)
             if (messagesList.length > 0 && !directives.messages) {
                  console.warn("Modelfile parsing: New MESSAGES block started before previous one was assigned. Assigning previous messages.");
                  directives.messages = messagesList;
             }
-            messagesList = []; // Reset for the new block
+            messagesList = [];
         } else if (upperTrimmedLine.startsWith('PARAMETER ')) {
             const paramString = originalTrimmedLine.substring('PARAMETER '.length).trim();
             const firstSpaceIndex = paramString.indexOf(' ');
@@ -142,7 +137,7 @@ function parseModelfileContent(modelfileString) {
         } else if (originalTrimmedLine !== '' && !originalTrimmedLine.startsWith('#')) {
             console.warn(`Modelfile parsing: Unknown or malformed directive: "${originalTrimmedLine}"`);
         }
-    } 
+    }
 
     if (currentBlockType) {
         console.warn(`Modelfile parsing: Unterminated ${currentBlockType} block at EOF.`);
@@ -169,7 +164,7 @@ export const load = async ({ locals }) => {
 
     const userId = locals.session.userId;
     const [userData] = await db.select().from(user).where(eq(user.id, userId));
-
+ 
     return {
         canUploadToCloud: userData?.cloudKey ? true : false
     }
@@ -182,93 +177,129 @@ export const actions = {
         }
         await auth.invalidateSession(event.locals.session.id);
         auth.deleteSessionTokenCookie(event);
-
+       
         throw redirect(302, '/');
     },
-    upload: async ({ request }) => {
-        console.log('=== STARTING OLLAMA UPLOAD PROCESS ===');
+    upload: async ({ request, locals: loc }) => {
         let ggufHash;
         let modelNameForOllama;
         let inputModelName;
         let inputGgufFileName;
-        let parsedModelfileDirectives = {}; 
+        let parsedModelfileDirectives = {};
+        let headers = {};
+        let cloudUrl;
 
         try {
+            const authUser = loc.user;
+            if (!authUser || !authUser.id) {
+                return fail(401, { message: 'User not authenticated.' });
+            }
+            
             const formData = await request.formData();
-            const username = formData.get('username');
+            
             inputModelName = formData.get('name');
             const ggufFile = formData.get('gguf');
             const modelfileFile = formData.get('modelfile');
+
+            if (formData.has('useCloud')) {
+                const useCloud = formData.get('useCloud') === 'true';
+                if (useCloud) {
+                    const [userData] = await db.select().from(user).where(eq(user.id, authUser.id));
+                    if (!userData || !userData.cloudKey || !userData.cloudUrl) {
+                        return fail(400, { message: 'Cloud configuration incomplete for this user.' });
+                    }
+                    try {
+                        const credentials = JSON.parse(userData.cloudKey);
+                        cloudUrl = userData.cloudUrl;
+                        const googleAuth = new GoogleAuth({
+                            credentials,
+                        });
+                        const client = await googleAuth.getIdTokenClient(cloudUrl);
+                        headers = await client.getRequestHeaders();
+                    } catch (e) {
+                        return fail(500, { message: 'Failed to prepare cloud authentication.' });
+                    }
+                }
+            }
+
 
             if (ggufFile instanceof File) {
                 inputGgufFileName = ggufFile.name;
             }
 
-            console.log(`Received upload request. Username: ${username}, Input Model Name: ${inputModelName}, GGUF: ${inputGgufFileName}, Modelfile: ${modelfileFile instanceof File ? modelfileFile.name : 'N/A'}`);
-
             if (!inputModelName || typeof inputModelName !== 'string' || inputModelName.trim() === '') {
-                console.error('Validation Error: Model name is missing or empty.');
                 return fail(400, { message: 'Model name is required.' });
             }
             if (!(ggufFile instanceof File) || ggufFile.size === 0) {
-                console.error('Validation Error: GGUF file is missing or empty.');
                 return fail(400, { message: 'GGUF file is required and cannot be empty.' });
             }
 
-            console.log(`Processing GGUF file: ${inputGgufFileName}...`);
             const ggufBuffer = await ggufFile.arrayBuffer();
             ggufHash = crypto.createHash('sha256').update(Buffer.from(ggufBuffer)).digest('hex');
-            console.log(`Calculated GGUF SHA256 Digest: ${ggufHash}`);
 
             const sanitizedGgufName = inputGgufFileName.replace(/[^a-zA-Z0-9_.-]/g, '_').replace(/\.[^/.]+$/, '');
-            console.log(`Sanitized GGUF name (for files mapping): ${sanitizedGgufName}`);
 
-            const blobCheckUrl = `${env.OLLAMA_URL}/api/blobs/sha256:${ggufHash}`;
-            console.log(`Checking if GGUF blob exists (HEAD request): ${blobCheckUrl}`);
+            let blobCheckUrl = `${env.OLLAMA_URL}/api/blobs/sha256:${ggufHash}`;
+            if (cloudUrl) {
+                blobCheckUrl = `${cloudUrl}/api/blobs/sha256:${ggufHash}`;
+            }
+
+
             let blobExists = false;
             try {
-                const headResponse = await fetch(blobCheckUrl, { method: 'HEAD' });
-                console.log(`Blob existence check response status: ${headResponse.status}`);
+                let headResponse;
+                if (!cloudUrl) {
+                    headResponse = await fetch(blobCheckUrl, { method: 'HEAD' });
+                } else {
+                    headResponse = await fetch(blobCheckUrl, { method: 'HEAD', headers: { ...headers } });
+                }
                 if (headResponse.ok) {
                     blobExists = true;
-                    console.log(`GGUF Blob sha256:${ggufHash} already exists on the server. Skipping upload.`);
                 } else if (headResponse.status === 404) {
-                    console.log(`GGUF Blob sha256:${ggufHash} does not exist on the server.`);
+                    blobExists = false;
                 } else {
-                    const errorText = await headResponse.text().catch(() => "Could not read error response body");
-                    console.error(`Unexpected HTTP status ${headResponse.status} when checking for GGUF blob. Response: ${errorText}`);
+                    const errorText = await headResponse.text().catch(() => "Could not read error response body for blob check");
+                    console.error(`[upload] Unexpected HTTP status ${headResponse.status} from Ollama when checking blob existence. Response: ${errorText}`); // LOGGING
                     throw new Error(`Unexpected HTTP status ${headResponse.status} from Ollama when checking blob existence.`);
                 }
             } catch (e) {
-                console.error(`Error during GGUF blob existence check: ${e.message}`);
+                console.error(`[upload] Failed to verify GGUF blob existence on Ollama server: ${e.message}`, e); // LOGGING
                 throw new Error(`Failed to verify GGUF blob existence on Ollama server: ${e.message}`);
             }
 
             if (!blobExists) {
-                const blobUploadUrl = `${env.OLLAMA_URL}/api/blobs/sha256:${ggufHash}`;
-                console.log(`Uploading GGUF blob to ${blobUploadUrl} (POST request)`);
-                const uploadResponse = await fetch(blobUploadUrl, {
-                    method: 'POST',
-                    body: Buffer.from(ggufBuffer),
-                });
+                let blobUploadUrl = `${env.OLLAMA_URL}/api/blobs/sha256:${ggufHash}`;
+                if(cloudUrl) blobUploadUrl = `${cloudUrl}/api/blobs/sha256:${ggufHash}`;
+
+                let uploadResponse;
+
+                if(!cloudUrl) {
+                    uploadResponse = await fetch(blobUploadUrl, {
+                        method: 'POST',
+                        body: Buffer.from(ggufBuffer),
+                    });
+                } else {
+                    uploadResponse = await fetch(blobUploadUrl, {
+                        method: 'POST',
+                        body: Buffer.from(ggufBuffer),
+                        headers: { ...headers }
+                    });
+                }
                 const uploadResponseText = await uploadResponse.text().catch(() => "Could not read upload response body");
-                console.log(`GGUF Blob upload response status: ${uploadResponse.status}, Body: ${uploadResponseText}`);
+                console.log(`[upload] Blob upload response status: ${uploadResponse.status}, Text: ${uploadResponseText.substring(0, 200)}...`); // LOGGING
+
                 if (!uploadResponse.ok) {
+                    console.error(`[upload] GGUF Blob upload failed: ${uploadResponse.status} ${uploadResponse.statusText}. Server response: ${uploadResponseText}`); // LOGGING
                     throw new Error(`GGUF Blob upload failed: ${uploadResponse.status} ${uploadResponse.statusText}. Server response: ${uploadResponseText}`);
                 }
-                console.log('GGUF Blob uploaded successfully to Ollama.');
+                console.log('[upload] GGUF Blob uploaded successfully.'); // LOGGING
             }
 
-            // --- Parse Modelfile Directives ---
-            let userModelfileContent = '';
+            let userModelfileContent = ''; // Keep this for potential later use if needed, but not directly in payload now
             if (modelfileFile instanceof File && modelfileFile.size > 0) {
-                console.log(`Processing user-provided Modelfile: ${modelfileFile.name}`);
-                userModelfileContent = await modelfileFile.text();
+                userModelfileContent = await modelfileFile.text(); // Still parse it to make directives available
                 parsedModelfileDirectives = parseModelfileContent(userModelfileContent);
-                console.log('Parsed Modelfile directives:', JSON.stringify(parsedModelfileDirectives, null, 2));
-            } else {
-                console.log('No user-provided Modelfile or it is empty. No additional directives will be parsed.');
-            }
+           }
 
             modelNameForOllama = inputModelName.toLowerCase()
                 .replace(/\s+/g, '-')
@@ -276,64 +307,67 @@ export const actions = {
                 .replace(/--+/g, '-')
                 .slice(0, 64);
             if (!modelNameForOllama) {
-                console.error("Error: Sanitized model name is empty.");
-                throw new Error("Invalid model name: after sanitization, the name became empty.");
+                modelNameForOllama = `model-${crypto.randomBytes(4).toString('hex')}`;
             }
-            console.log(`Sanitized model name for Ollama API: ${modelNameForOllama}`);
-
-            const ollamaPayload = {
+          const ollamaPayload = {
                 name: modelNameForOllama,
-                files: { 
+                files: {
                     [sanitizedGgufName]: `sha256:${ggufHash}`
                 },
                 stream: false,
-                ...parsedModelfileDirectives 
+                ...parsedModelfileDirectives
             };
-            
-            console.log(`Sending request to create model in Ollama (POST): ${env.OLLAMA_URL}/api/create`);
-            console.log('Ollama /api/create payload:', JSON.stringify(ollamaPayload, null, 2));
+            let createResponse;
+            const createUrl = cloudUrl ? `${cloudUrl}/api/create` : `${env.OLLAMA_URL}/api/create`;
+           
+            if (!cloudUrl) {
+                createResponse = await fetch(createUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(ollamaPayload)
+                });
+            } else {
+                createResponse = await fetch(createUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...headers
+                    },
+                    body: JSON.stringify(ollamaPayload)
+                });
+            }
 
-            const createResponse = await fetch(`${env.OLLAMA_URL}/api/create`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(ollamaPayload)
-            });
-
-            let createResponseJson;
             const createResponseTextForLog = await createResponse.text();
+          
+            let createResponseJson;
             try {
                 createResponseJson = JSON.parse(createResponseTextForLog);
             } catch (e) {
-                createResponseJson = { error: "Failed to parse JSON response from /api/create", details: createResponseTextForLog };
+                createResponseJson = { error: "Failed to parse JSON response from /api/create", details: createResponseTextForLog.substring(0, 500) };
             }
-            console.log(`Ollama /api/create response status: ${createResponse.status}`);
-            console.log('Ollama /api/create response body:', JSON.stringify(createResponseJson, null, 2));
 
             if (!createResponse.ok) {
-                const errorMessage = createResponseJson.error || `Model creation failed with status ${createResponse.status}`;
-                const errorDetails = createResponseJson.details || (typeof createResponseJson === 'string' ? createResponseJson : '');
-                throw new Error(`Ollama model creation failed: ${errorMessage} ${errorDetails}`);
+                const errorMessage = createResponseJson?.error || `Model creation failed with status ${createResponse.status}`;
+                const errorDetails = createResponseJson?.details || (typeof createResponseJson === 'string' ? createResponseJson : createResponseTextForLog);
+                 throw new Error(`Ollama model creation failed: ${errorMessage} ${errorDetails}`);
             }
 
-            console.log(`Model '${modelNameForOllama}' creation process in Ollama initiated successfully.`);
-
-            await db.insert(customLocalModel).values({
-                userId: username,
-                modelName: modelNameForOllama
-            });
-
-            console.log('=== OLLAMA UPLOAD PROCESS COMPLETED SUCCESSFULLY ===');
-
-            return { success: 'Model succesfully uploaded', modelName: modelNameForOllama, ggufHash: ggufHash };
+            if (!cloudUrl) {
+                await db.insert(customLocalModel).values({
+                    userId: authUser.id,
+                    modelName: modelNameForOllama
+                });
+            } else {
+                await db.insert(customCloudModel).values({
+                    userId: authUser.id,
+                    modelName: modelNameForOllama
+                });
+            }
+  return { success: true, message: 'Model successfully uploaded', modelName: modelNameForOllama, ggufHash: ggufHash };
 
         } catch (error) {
-            console.error('=== OLLAMA UPLOAD PROCESS FAILED ===');
-            console.error('Full Error Object:', error);
-            const errorMessage = error.message || "An unknown error occurred.";
-            const errorStack = error.stack || "No stack trace available.";
-            console.error('Error Message:', errorMessage);
-            console.error('Error Stack:', errorStack);
-            
+            const errorMessage = error.message || "An unknown error occurred during upload.";
+
             return fail(error.status || 500, {
                 message: errorMessage,
                 debugInfo: {
@@ -341,7 +375,9 @@ export const actions = {
                     ggufFileName: inputGgufFileName,
                     calculatedGgufHash: ggufHash,
                     ollamaModelName: modelNameForOllama,
-                    parsedDirectives: parsedModelfileDirectives
+                    parsedDirectivesBrief: Object.keys(parsedModelfileDirectives).join(', ') || "None",
+                    cloudUploadAttempted: !!cloudUrl,
+                    errorDetails: error.toString()
                 }
             });
         }

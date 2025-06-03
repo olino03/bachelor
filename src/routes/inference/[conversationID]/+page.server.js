@@ -1,6 +1,6 @@
-import { eq, inArray, desc, asc, and, max } from 'drizzle-orm';
+import { sql, eq, inArray, desc, asc, and, max } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
-import { conversation, message, inferenceModel, localModel, cloudModel } from '$lib/server/db/schema.js';
+import { conversation, message, inferenceModel, localModel, cloudModel, customLocalModel, customCloudModel } from '$lib/server/db/schema.js';
 import { env } from '$env/dynamic/private';
 import { goto } from '$app/navigation';
 import { redirect } from '@sveltejs/kit';
@@ -157,10 +157,27 @@ export async function load({ locals, params }) {
         )
         .where(eq(cloudModel.userId, userID));
 
+    const customLocalModels = await db
+        .select({
+            ollamaName: sql`concat('local:', ${customLocalModel.modelName})`, 
+            name: sql`concat('local:', ${customLocalModel.modelName})`,
+        })
+        .from(customLocalModel)
+        .where(eq(customLocalModel.userId, userID));
+
+    const customCloudModels = await db
+        .select({
+            ollamaName: sql`concat('cloud:', ${customCloudModel.modelName})`,
+            name: sql`concat('cloud:', ${customCloudModel.modelName})`,
+        })
+        .from(customCloudModel)
+        .where(eq(customCloudModel.userId, userID));
+
     return {
         conversations: conversationsWithMessages,
         cloudModels: cloudModels,
         localModels: localModels,
+        customModels: [...customLocalModels, ...customCloudModels],
         selectedConversationId: Number(conversationID)
     };
 }

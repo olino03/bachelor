@@ -5,7 +5,6 @@
 	const navLinks = [
 		{ href: '/datasets', label: 'Datasets' },
 		{ href: '/models', label: 'Models' },
-		{ href: '/docs', label: 'Docs' },
 		{ href: '/inference', label: 'Inference' }
 	];
 </script>
