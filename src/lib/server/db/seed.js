@@ -24,7 +24,6 @@ async function seedDatabase() {
     await db.delete(inferenceModel);
     console.log('Existing models deleted.');
 
-    // Get path to JSON file using import.meta.url
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
     const jsonPath = path.join(__dirname, 'ollama_models.json');

@@ -97,7 +97,9 @@
 					<option value="24">24</option>
 				</select>
 			</div>
-			<button class="mt-6 p-4 rounded-lg w-full bg-[#ffe54f] text-[#1e1e1e]"><a href='/datasets/upload'>Upload your own</a></button>
+			{#if data.user}
+				<button class="mt-6 p-4 rounded-lg w-full bg-[#ffe54f] text-[#1e1e1e]"><a href='/datasets/upload'>Upload your own</a></button>
+			{/if}
 		</div>
 	</section>
 

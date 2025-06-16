@@ -88,18 +88,6 @@
                         </div>
                     </div>
                 </div>
-
-                {#if $page.data.user?.username === data.dataset.uploader}
-                    <div class="mt-6 pt-6 border-t border-gray-700">
-                        <a
-                            href="/datasets/{data.dataset.id}/edit"
-                            class="bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
-                        >
-                            <i class="fa-solid fa-pencil mr-2"></i>
-                            Edit Dataset
-                        </a>
-                    </div>
-                {/if}
             </div>
         </div>
 
