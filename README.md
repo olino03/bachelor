@@ -1,38 +1,26 @@
-# sv
+# AI-as-a-Service
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+Instruction on how to get the project up and running.
 
-## Creating a project
+## Prerequisites
 
-If you're seeing this, you've probably already done this step. Congrats!
+Ollama must be installed on the current user's machine.
+This can be setup either as a docker container or on the actual machine.
 
 ```bash
-# create a new project in the current directory
-npx sv create
-
-# create a new project in my-app
-npx sv create my-app
+npm install
+npm run db:start # Start the database container (make sure you aren't running PostgresSQL locally as they will conflict.)
+npm run db:push # This will push the table creation alongside the some initial values within the database
 ```
+(or `pnpm install` or `yarn`).
+This installs all dependencies of the project.
 
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+## Running the application
 
 ```bash
 npm run dev
 
-# or start the server and open the app in a new browser tab
+# Or start the server and open the app in a new browser tab
 npm run dev -- --open
 ```
 
-## Building
-
-To create a production version of your app:
-
-```bash
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.

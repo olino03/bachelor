@@ -14,10 +14,6 @@ export function generateSessionToken() {
 	return token;
 }
 
-/**
- * @param {string} token
- * @param {string} userId
- */
 export async function createSession(token, userId) {
 	const sessionId = encodeHexLowerCase(sha256(new TextEncoder().encode(token)));
 	const session = {
@@ -29,12 +25,10 @@ export async function createSession(token, userId) {
 	return session;
 }
 
-/** @param {string} token */
 export async function validateSessionToken(token) {
 	const sessionId = encodeHexLowerCase(sha256(new TextEncoder().encode(token)));
 	const [result] = await db
 		.select({
-			// Adjust user table here to tweak returned data
 			user: { id: table.user.id, username: table.user.username },
 			session: table.session
 		})
@@ -65,16 +59,10 @@ export async function validateSessionToken(token) {
 	return { session, user };
 }
 
-/** @param {string} sessionId */
 export async function invalidateSession(sessionId) {
 	await db.delete(table.session).where(eq(table.session.id, sessionId));
 }
 
-/**
- * @param {import("@sveltejs/kit").RequestEvent} event
- * @param {string} token
- * @param {Date} expiresAt
- */
 export function setSessionTokenCookie(event, token, expiresAt) {
 	event.cookies.set(sessionCookieName, token, {
 		expires: expiresAt,
@@ -82,7 +70,6 @@ export function setSessionTokenCookie(event, token, expiresAt) {
 	});
 }
 
-/** @param {import("@sveltejs/kit").RequestEvent} event */
 export function deleteSessionTokenCookie(event) {
 	event.cookies.delete(sessionCookieName, {
 		path: '/'

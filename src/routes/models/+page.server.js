@@ -25,10 +25,10 @@ export async function load() {
 
         const joinedModels = allModels.map(model => ({
             ...model,
-            tags: datasetTagRelation
+            tags: modelTagRelation
                 .filter(relation => relation.modelId === model.id)
                 .map(relation => allTags.find(tag => tag.id === relation.tagId))
-                .filter(Boolean) // Remove any potential undefined values
+                .filter(Boolean) 
         }));
         return { models: joinedModels, tags: allTags };
     } catch (error) {

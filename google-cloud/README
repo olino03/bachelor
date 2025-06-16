@@ -1,0 +1,3 @@
+# Example Ollama Cloud Container
+
+This `Dockerfile` serves as how the user might chose to deploy their Ollama instance on the cloud. It preinstalls one of the Gemma models for debugging. 

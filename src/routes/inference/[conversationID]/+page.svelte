@@ -143,7 +143,7 @@
             }
             const chosenCustomModel = data.customModels?.find(m => m.name === selectedCustomModelUIName);
             if (chosenCustomModel) {
-                modelIdForPayload = null; // MODIFICATION: Explicitly null for custom models as they don't have a direct inferenceModel.id
+                modelIdForPayload = null; 
                 modelNameForPayload = chosenCustomModel.ollamaName || chosenCustomModel.name;
              } else {
                 error = `Selected custom model "${selectedCustomModelUIName}" is not valid or not found in the list. Please reselect.`;

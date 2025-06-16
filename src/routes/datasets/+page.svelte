@@ -2,7 +2,7 @@
 	let { data } = $props();
 
 	let searchQuery = $state('');
-	let itemsPerPage = $state('6'); // This is some JS bullshit
+	let itemsPerPage = $state('6'); // Some good ol JS wierdness
 	let currentPage = $state(1);
 	let selectedMetric = $state('most-popular');
 	let selectedTags = $state([]);

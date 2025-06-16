@@ -259,11 +259,11 @@ export const actions = {
                     blobExists = false;
                 } else {
                     const errorText = await headResponse.text().catch(() => "Could not read error response body for blob check");
-                    console.error(`[upload] Unexpected HTTP status ${headResponse.status} from Ollama when checking blob existence. Response: ${errorText}`); // LOGGING
+                    console.error(`[upload] Unexpected HTTP status ${headResponse.status} from Ollama when checking blob existence. Response: ${errorText}`); 
                     throw new Error(`Unexpected HTTP status ${headResponse.status} from Ollama when checking blob existence.`);
                 }
             } catch (e) {
-                console.error(`[upload] Failed to verify GGUF blob existence on Ollama server: ${e.message}`, e); // LOGGING
+                console.error(`[upload] Failed to verify GGUF blob existence on Ollama server: ${e.message}`, e); 
                 throw new Error(`Failed to verify GGUF blob existence on Ollama server: ${e.message}`);
             }
 
@@ -286,18 +286,18 @@ export const actions = {
                     });
                 }
                 const uploadResponseText = await uploadResponse.text().catch(() => "Could not read upload response body");
-                console.log(`[upload] Blob upload response status: ${uploadResponse.status}, Text: ${uploadResponseText.substring(0, 200)}...`); // LOGGING
+                console.log(`[upload] Blob upload response status: ${uploadResponse.status}, Text: ${uploadResponseText.substring(0, 200)}...`); 
 
                 if (!uploadResponse.ok) {
-                    console.error(`[upload] GGUF Blob upload failed: ${uploadResponse.status} ${uploadResponse.statusText}. Server response: ${uploadResponseText}`); // LOGGING
+                    console.error(`[upload] GGUF Blob upload failed: ${uploadResponse.status} ${uploadResponse.statusText}. Server response: ${uploadResponseText}`);
                     throw new Error(`GGUF Blob upload failed: ${uploadResponse.status} ${uploadResponse.statusText}. Server response: ${uploadResponseText}`);
                 }
-                console.log('[upload] GGUF Blob uploaded successfully.'); // LOGGING
+                console.log('[upload] GGUF Blob uploaded successfully.'); 
             }
 
-            let userModelfileContent = ''; // Keep this for potential later use if needed, but not directly in payload now
+            let userModelfileContent = ''; 
             if (modelfileFile instanceof File && modelfileFile.size > 0) {
-                userModelfileContent = await modelfileFile.text(); // Still parse it to make directives available
+                userModelfileContent = await modelfileFile.text(); 
                 parsedModelfileDirectives = parseModelfileContent(userModelfileContent);
            }
 

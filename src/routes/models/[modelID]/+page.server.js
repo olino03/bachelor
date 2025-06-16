@@ -50,7 +50,7 @@ export const load = async ({ params }) => {
         if (fetchedModel.length === 0) {
             return fail(404, "Model not found");
         }
-        return { model: fetchedModel[0] };
+        return { model: fetchedModel[0], modelID: params.modelID };
     }
     catch (error) {
         return {

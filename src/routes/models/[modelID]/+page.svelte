@@ -4,6 +4,8 @@
 
 	let { data } = $props();
 
+	console.log(data);
+
 	let isHearted = $state(false);
 	let downloadCount = $state(data.model.downloads);
 	let heartCount = $state(data.model.hearts);
@@ -15,7 +17,7 @@
 
 	const toggleDownload = async () => {
 		try {
-			const res = await fetch(`${page.params.modelID}/download/`);
+			const res = await fetch(`${data.modelID}/download/`);
 			if (!res.ok) return;
 
 			let fileName = '';

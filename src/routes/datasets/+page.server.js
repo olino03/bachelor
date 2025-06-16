@@ -28,7 +28,7 @@ export async function load() {
             tags: datasetTagRelation
                 .filter(relation => relation.datasetId === dataset.id)
                 .map(relation => allTags.find(tag => tag.id === relation.tagId))
-                .filter(Boolean) // Remove any potential undefined values
+                .filter(Boolean) 
         }));
         return { datasets: joinedDatasets, tags: allTags };
     } catch (error) {

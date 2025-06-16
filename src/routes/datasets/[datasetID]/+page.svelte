@@ -4,6 +4,8 @@
 
     let {data} = $props();
 
+    console.log(data);
+
     let isHearted = $state(false);
     let downloadCount = $state(data.dataset.downloads);
     let heartCount = $state(data.dataset.hearts);

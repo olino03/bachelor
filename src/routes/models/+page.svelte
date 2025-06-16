@@ -111,7 +111,7 @@
 							{model.name}
 						</h1>
 						<p class="text-sm text-[#f5f5f5] mb-4 leading-normal">
-							{model.description}
+							{model.displayDescription}
 						</p>
 						<div class="flex gap-6 pt-3 border-t border-gray-200">
 							<div class="flex gap-2 items-center">
